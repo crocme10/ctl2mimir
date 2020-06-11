@@ -3,7 +3,9 @@
 pub mod model;
 
 /// Route handlers for indexes
-pub mod index;
+pub mod indexes;
 
 /// Utility functions and traits
 pub mod utils;
+
+pub mod gql;

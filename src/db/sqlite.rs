@@ -106,4 +106,22 @@ SELECT * FROM indexes WHERE index_id = last_insert_rowid();
 
         Ok(rec.into())
     }
+
+    async fn get_all_indexes(&mut self) -> Result<Vec<IndexEntity>, ProvideError> {
+        let recs: Vec<SqliteIndexEntity> = sqlx::query_as(
+            r#"
+            SELECT * FROM indexes ORDER BY updated_at
+            "#,
+        )
+        .fetch_all(self)
+        .await
+        .map_err(|err| ProvideError::from(err))?;
+
+        let entities = recs
+            .into_iter()
+            .map(|rec| IndexEntity::from(rec))
+            .collect::<Vec<_>>();
+
+        Ok(entities)
+    }
 }

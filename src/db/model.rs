@@ -27,6 +27,8 @@ pub trait ProvideData {
         // is not typed.... but for GraphQL, it could be different
         regions: &str,
     ) -> ProvideResult<IndexEntity>;
+
+    async fn get_all_indexes(&mut self) -> ProvideResult<Vec<IndexEntity>>;
 }
 
 pub type ProvideResult<T> = Result<T, ProvideError>;
