@@ -5,7 +5,7 @@ use futures::TryFutureExt;
 use juniper::GraphQLObject;
 use serde::Serialize;
 use snafu::ResultExt;
-use sqlx::pool::PoolConnection;
+// use sqlx::pool::PoolConnection;
 use sqlx::Connection;
 use std::convert::TryFrom;
 
@@ -48,13 +48,14 @@ impl From<Vec<Index>> for MultIndexesResponseBody {
 ///
 /// [List Indexes](https://github.com/gothinkster/realworld/tree/master/api#list-indexes)
 ///   Request<impl Db<Conn = PoolConnection<impl Connect + ProvideData>>>,
-pub async fn list_indexes<S, C>(
-    context: &Context<S>,
-) -> Result<MultIndexesResponseBody, error::Error>
-where
-    S: Send + Sync + Db<Conn = PoolConnection<C>> + 'static,
-    C: sqlx::Connect + ProvideData,
-{
+// pub async fn list_indexes<S, C>(
+//     context: &Context<S>,
+// ) -> Result<MultIndexesResponseBody, error::Error>
+// where
+//     S: Send + Sync + Db<Conn = PoolConnection<C>> + 'static,
+//     C: sqlx::Connect + ProvideData,
+// {
+pub async fn list_indexes(context: &Context) -> Result<MultIndexesResponseBody, error::Error> {
     async move {
         let state = &context.pool;
 
