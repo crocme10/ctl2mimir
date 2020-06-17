@@ -39,7 +39,7 @@ struct SqliteIndexEntity {
     index_id: EntityId,
     index_type: String,
     data_source: String,
-    regions: String,
+    region: String,
     status: String,
     created_at: i32,
     updated_at: i32,
@@ -51,7 +51,7 @@ impl From<SqliteIndexEntity> for IndexEntity {
             index_id,
             index_type,
             data_source,
-            regions,
+            region,
             status,
             created_at,
             updated_at,
@@ -61,7 +61,7 @@ impl From<SqliteIndexEntity> for IndexEntity {
             index_id,
             index_type,
             data_source,
-            regions: regions.split(',').map(|s| s.trim().to_owned()).collect(),
+            region,
             status,
             created_at: Utc.timestamp(created_at as _, 0),
             updated_at: Utc.timestamp(updated_at as _, 0),
@@ -89,18 +89,18 @@ impl ProvideData for SqliteConnection {
         &mut self,
         index_type: &str,
         data_source: &str,
-        regions: &str,
+        region: &str,
     ) -> ProvideResult<IndexEntity> {
         let rec: SqliteIndexEntity = sqlx::query_as(
             r#"
-INSERT INTO indexes ( index_type, data_source, regions )
+INSERT INTO indexes ( index_type, data_source, region )
 VALUES ( $1, $2, $3 );
 SELECT * FROM indexes WHERE index_id = last_insert_rowid();
             "#,
         )
         .bind(index_type)
         .bind(data_source)
-        .bind(regions)
+        .bind(region)
         .fetch_one(self)
         .await?;
 

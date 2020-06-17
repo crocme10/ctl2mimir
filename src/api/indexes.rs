@@ -2,19 +2,26 @@
 use futures::TryFutureExt;
 // use heck::KebabCase;
 // use log::*;
-use juniper::GraphQLObject;
-use serde::Serialize;
+use juniper::{GraphQLInputObject, GraphQLObject};
+use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 // use sqlx::pool::PoolConnection;
 use sqlx::Connection;
 use std::convert::TryFrom;
 
-use crate::api::model::*;
-// use crate::api::utils::*;
 use crate::api::gql::Context;
+use crate::api::model::*;
 use crate::db::model::ProvideData;
 use crate::db::Db;
 use crate::error;
+
+/// The request body for a single index
+#[derive(Debug, Serialize, Deserialize, GraphQLInputObject)]
+pub struct IndexRequestBody {
+    pub index_type: String,
+    pub data_source: String,
+    pub region: String,
+}
 
 /// The response body for a single index
 ///
@@ -45,16 +52,6 @@ impl From<Vec<Index>> for MultIndexesResponseBody {
 }
 
 /// Retrieve all indexes
-///
-/// [List Indexes](https://github.com/gothinkster/realworld/tree/master/api#list-indexes)
-///   Request<impl Db<Conn = PoolConnection<impl Connect + ProvideData>>>,
-// pub async fn list_indexes<S, C>(
-//     context: &Context<S>,
-// ) -> Result<MultIndexesResponseBody, error::Error>
-// where
-//     S: Send + Sync + Db<Conn = PoolConnection<C>> + 'static,
-//     C: sqlx::Connect + ProvideData,
-// {
 pub async fn list_indexes(context: &Context) -> Result<MultIndexesResponseBody, error::Error> {
     async move {
         let state = &context.pool;
@@ -81,6 +78,46 @@ pub async fn list_indexes(context: &Context) -> Result<MultIndexesResponseBody, 
         })?;
 
         Ok(MultIndexesResponseBody::from(indexes))
+    }
+    .await
+}
+
+/// Create a new index
+pub async fn create_index(
+    index_request: IndexRequestBody,
+    context: &Context,
+) -> Result<IndexResponseBody, error::Error> {
+    async move {
+        let state = &context.pool;
+
+        let mut tx = state
+            .conn()
+            .and_then(Connection::begin)
+            .await
+            .context(error::DBError {
+                details: "could not retrieve transaction",
+            })?;
+
+        let IndexRequestBody {
+            index_type,
+            data_source,
+            region,
+        } = index_request;
+
+        let entity = tx
+            .create_index(&index_type, &data_source, &region)
+            .await
+            .context(error::DBProvideError {
+                details: "Could not create index",
+            })?;
+
+        let index = Index::from(entity);
+
+        tx.commit().await.context(error::DBError {
+            details: "could not commit transaction",
+        })?;
+
+        Ok(IndexResponseBody::from(IndexResponseBody { index }))
     }
     .await
 }

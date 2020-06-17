@@ -1,5 +1,5 @@
 //use futures::Stream;
-use juniper::{EmptyMutation, EmptySubscription, FieldResult, IntoFieldError, RootNode};
+use juniper::{EmptySubscription, FieldResult, IntoFieldError, RootNode};
 use slog::Logger;
 // use sqlx::pool::PoolConnection;
 use sqlx::sqlite::SqlitePool;
@@ -31,8 +31,53 @@ impl Query {
     }
 }
 
-type Schema = RootNode<'static, Query, EmptyMutation<Context>, EmptySubscription<Context>>;
+pub struct Mutation;
+
+#[juniper::graphql_object(
+    Context = Context
+)]
+impl Mutation {
+    /// Create an index
+    async fn create_index(
+        &self,
+        index: indexes::IndexRequestBody,
+        context: &Context,
+    ) -> FieldResult<indexes::IndexResponseBody> {
+        indexes::create_index(index, context)
+            .await
+            .map_err(IntoFieldError::into_field_error)
+    }
+}
+
+type Schema = RootNode<'static, Query, Mutation, EmptySubscription<Context>>;
 
 pub fn schema() -> Schema {
-    Schema::new(Query, EmptyMutation::new(), EmptySubscription::new())
+    Schema::new(Query, Mutation, EmptySubscription::new())
 }
+
+// impl<S> juniper::FromInputValue<S> for indexes::IndexRequestBody
+// where
+//     S: juniper::ScalarValue,
+// {
+//     fn from_input_value<'a>(v: &juniper::InputValue<S>) -> Option<indexes::IndexRequestBody> {
+//         let obj = match v.to_object_value() {
+//             Some(o) => o,
+//             None => return None,
+//         };
+//
+//         Some(indexes::IndexRequestBody {
+//             index_type: match obj.get("indexType").and_then(|v| v.convert()) {
+//                 Some(f) => f,
+//                 None => return None,
+//             },
+//             data_source: match obj.get("dataSource").and_then(|v| v.convert()) {
+//                 Some(f) => f,
+//                 None => return None,
+//             },
+//             region: match obj.get("region").and_then(|v| v.convert()) {
+//                 Some(f) => f,
+//                 None => return None,
+//             },
+//         })
+//     }
+// }

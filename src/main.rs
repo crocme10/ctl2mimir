@@ -6,12 +6,12 @@ use slog::{info, o, Drain, Logger};
 use snafu::ResultExt;
 // use sqlx::pool::PoolConnection;
 use sqlx::sqlite::SqlitePool;
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::ToSocketAddrs;
 // use std::{pin::Pin, sync::Arc};
 use warp::{self, Filter};
 
 use delega::api::gql;
-use delega::db::{self, model::ProvideData, Db};
+use delega::db;
 use delega::error;
 
 #[tokio::main]

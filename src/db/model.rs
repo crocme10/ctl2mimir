@@ -9,7 +9,7 @@ pub struct IndexEntity {
     pub index_id: EntityId,
     pub index_type: String,
     pub data_source: String,
-    pub regions: Vec<String>,
+    pub region: String,
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -25,7 +25,7 @@ pub trait ProvideData {
         // More generally, should this interface be more typed??
         // The example I am using is based on REST interface, which
         // is not typed.... but for GraphQL, it could be different
-        regions: &str,
+        region: &str,
     ) -> ProvideResult<IndexEntity>;
 
     async fn get_all_indexes(&mut self) -> ProvideResult<Vec<IndexEntity>>;

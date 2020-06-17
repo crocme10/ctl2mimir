@@ -10,7 +10,7 @@ use crate::db::model::*;
 pub(in crate::api) struct Index {
     pub index_type: String,
     pub data_source: String,
-    pub regions: Vec<String>,
+    pub region: String,
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -21,7 +21,7 @@ impl From<IndexEntity> for Index {
         let IndexEntity {
             index_type,
             data_source,
-            regions,
+            region,
             status,
             created_at,
             updated_at,
@@ -31,7 +31,7 @@ impl From<IndexEntity> for Index {
         Index {
             index_type,
             data_source,
-            regions,
+            region,
             status,
             created_at,
             updated_at,
