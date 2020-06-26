@@ -58,29 +58,29 @@ async fn main() -> Result<(), error::Error> {
 
     let db_url = matches
         .value_of("db_url")
-        .ok_or_else(|| error::Error::UserError {
+        .ok_or_else(|| error::Error::MiscError {
             details: String::from("Could not get db_url"),
         })?;
 
     let addr = matches
         .value_of("address")
-        .ok_or_else(|| error::Error::UserError {
+        .ok_or_else(|| error::Error::MiscError {
             details: String::from("Could not get address"),
         })?;
 
     let port = matches
         .value_of("port")
-        .ok_or_else(|| error::Error::UserError {
+        .ok_or_else(|| error::Error::MiscError {
             details: String::from("Could not get port"),
         })?;
 
-    let port = port.parse::<u16>().map_err(|err| error::Error::UserError {
+    let port = port.parse::<u16>().map_err(|err| error::Error::MiscError {
         details: format!("Could not parse into a valid port number ({})", err),
     })?;
 
     let db = matches
         .value_of("db")
-        .ok_or_else(|| error::Error::UserError {
+        .ok_or_else(|| error::Error::MiscError {
             details: String::from("Could not get db"),
         })?;
 
@@ -95,7 +95,7 @@ async fn main() -> Result<(), error::Error> {
             )
             .await
         }
-        other => Err(error::Error::UserError {
+        other => Err(error::Error::MiscError {
             details: format!("No support for '{}'", other),
         }),
     }?;
@@ -134,9 +134,11 @@ async fn run_server(
 
     let addr = addr
         .to_socket_addrs()
-        .context(error::IOError)?
+        .context(error::IOError {
+            details: String::from("To Sock Addr"),
+        })?
         .next()
-        .ok_or(error::Error::UserError {
+        .ok_or(error::Error::MiscError {
             details: String::from("Cannot resolve addr"),
         })?;
 

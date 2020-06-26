@@ -1,3 +1,4 @@
+// use async_zmq::StreamExt;
 use futures::TryFutureExt;
 use juniper::{GraphQLInputObject, GraphQLObject};
 use serde::{Deserialize, Serialize};
@@ -10,6 +11,7 @@ use crate::api::model::*;
 use crate::db::model::ProvideData;
 use crate::db::Db;
 use crate::error;
+use crate::fsm::FSM;
 
 /// The request body for a single index
 #[derive(Debug, Serialize, Deserialize, GraphQLInputObject)]
@@ -112,6 +114,18 @@ pub async fn create_index(
         tx.commit().await.context(error::DBError {
             details: "could not commit transaction",
         })?;
+
+        // Now construct and initialize the Finite State Machine (FSM)
+        // state is the name of the topic we're asking the publisher to broadcast message,
+        // 5555 is the port
+        let mut fsm = FSM::new(index_type, data_source, region, String::from("state"), 5555)?;
+
+        // Start the FSM
+        let _ = tokio::spawn(async move { fsm.exec().await })
+            .await
+            .context(error::TokioJoinError {
+                details: String::from("Could not run FSM to completion"),
+            })?;
 
         Ok(IndexResponseBody::from(IndexResponseBody { index }))
     }

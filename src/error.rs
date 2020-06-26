@@ -6,9 +6,9 @@ use crate::db::model::ProvideError;
 
 #[derive(Debug, Snafu)]
 pub enum Error {
-    #[snafu(display("User Error: {}", details))]
+    #[snafu(display("Misc Error: {}", details))]
     #[snafu(visibility(pub))]
-    UserError { details: String },
+    MiscError { details: String },
 
     #[snafu(display("Environment Variable Error: {} => {}", details, source))]
     #[snafu(visibility(pub))]
@@ -22,7 +22,23 @@ pub enum Error {
     #[snafu(visibility(pub))]
     IOError {
         source: io::Error,
+        details: String,
         backtrace: Backtrace,
+    },
+
+    #[snafu(display("Reqwest Error: {} {}", details, source))]
+    #[snafu(visibility(pub))]
+    ReqwestError {
+        source: reqwest::Error,
+        details: String,
+        backtrace: Backtrace,
+    },
+
+    #[snafu(display("UrL Error: {} {}", details, source))]
+    #[snafu(visibility(pub))]
+    URLError {
+        source: url::ParseError,
+        details: String,
     },
 
     #[snafu(display("Tokio IO Error: {}", source))]
@@ -32,6 +48,47 @@ pub enum Error {
         backtrace: Backtrace,
     },
 
+    #[snafu(display("Tokio Task Error {}: {}", details, source))]
+    #[snafu(visibility(pub))]
+    TokioJoinError {
+        details: String,
+        source: tokio::task::JoinError,
+    },
+
+    #[snafu(display("ZeroMQ Error {}: {}", details, source))]
+    #[snafu(visibility(pub))]
+    ZMQError {
+        details: String,
+        source: async_zmq::Error,
+    },
+
+    #[snafu(display("ZeroMQ Subscribe Error {}: {}", details, source))]
+    #[snafu(visibility(pub))]
+    ZMQSubscribeError {
+        details: String,
+        source: async_zmq::SubscribeError,
+    },
+
+    #[snafu(display("ZeroMQ Socket Error {}: {}", details, source))]
+    #[snafu(visibility(pub))]
+    ZMQSocketError {
+        details: String,
+        source: async_zmq::SocketError,
+    },
+
+    #[snafu(display("ZeroMQ Receive Error {}: {}", details, source))]
+    #[snafu(visibility(pub))]
+    ZMQRecvError {
+        details: String,
+        source: async_zmq::RecvError,
+    },
+
+    #[snafu(display("ZeroMQ Send Error {}: {}", details, source))]
+    #[snafu(visibility(pub))]
+    ZMQSendError {
+        details: String,
+        source: async_zmq::SendError,
+    },
     #[snafu(display("DB Error: {} => {}", details, source))]
     #[snafu(visibility(pub))]
     DBError {
@@ -42,7 +99,7 @@ pub enum Error {
 
     #[snafu(display("Serde Json Error: {} => {}", details, source))]
     #[snafu(visibility(pub))]
-    SerdeJsonError {
+    SerdeJSONError {
         details: String,
         source: serde_json::error::Error,
         backtrace: Backtrace,
@@ -55,27 +112,12 @@ pub enum Error {
         source: ProvideError,
         backtrace: Backtrace,
     },
-    // #[snafu(display("Reqwest Error: {} => {}", details, source))]
-    // #[snafu(visibility(pub))]
-    // ReqwestError {
-    //     details: String,
-    //     source: reqwest::Error,
-    //     backtrace: Backtrace,
-    // },
-
-    // #[snafu(display("Gherkin Parser Error: {} => {}", details, source))]
-    // #[snafu(visibility(pub))]
-    // GherkinError {
-    //     details: String,
-    //     source: gherkin_rust::ParseError<gherkin_rust::LineCol>,
-    //     backtrace: Backtrace,
-    // },
 }
 
 impl IntoFieldError for Error {
     fn into_field_error(self) -> FieldError {
         match self {
-            err @ Error::UserError { .. } => {
+            err @ Error::MiscError { .. } => {
                 let errmsg = format!("{}", err);
                 FieldError::new("User Error", graphql_value!({ "internal_error": errmsg }))
             }
@@ -104,7 +146,7 @@ impl IntoFieldError for Error {
                     graphql_value!({ "internal_error": errmsg }),
                 )
             }
-            err @ Error::SerdeJsonError { .. } => {
+            err @ Error::SerdeJSONError { .. } => {
                 let errmsg = format!("{}", err);
                 FieldError::new("Serde Error", graphql_value!({ "internal_error": errmsg }))
             }
@@ -115,20 +157,65 @@ impl IntoFieldError for Error {
                     "DB Provide Error",
                     graphql_value!({ "internal_error": errmsg }),
                 )
-            } // err @ Error::ReqwestError { .. } => {
-              //     let errmsg = format!("{}", err);
-              //     FieldError::new(
-              //         "Reqwest Error",
-              //         graphql_value!({ "internal_error": errmsg }),
-              //     )
-              // }
-              // err @ Error::GherkinError { .. } => {
-              //     let errmsg = format!("{}", err);
-              //     FieldError::new(
-              //         "Gherkin Error",
-              //         graphql_value!({ "internal_error": errmsg }),
-              //     )
-              // }
+            }
+
+            err @ Error::ReqwestError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new(
+                    "Reqwest Error",
+                    graphql_value!({ "internal_error": errmsg }),
+                )
+            }
+
+            err @ Error::URLError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new("URL Error", graphql_value!({ "internal_error": errmsg }))
+            }
+
+            err @ Error::TokioJoinError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new(
+                    "Tokio Join Error",
+                    graphql_value!({ "internal_error": errmsg }),
+                )
+            }
+
+            err @ Error::ZMQError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new("ZMQ Error", graphql_value!({ "internal_error": errmsg }))
+            }
+
+            err @ Error::ZMQSubscribeError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new(
+                    "ZMQ Subscribe Error",
+                    graphql_value!({ "internal_error": errmsg }),
+                )
+            }
+
+            err @ Error::ZMQSocketError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new(
+                    "ZMQ Socket Error",
+                    graphql_value!({ "internal_error": errmsg }),
+                )
+            }
+
+            err @ Error::ZMQRecvError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new(
+                    "ZMQ Receive Error",
+                    graphql_value!({ "internal_error": errmsg }),
+                )
+            }
+
+            err @ Error::ZMQSendError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new(
+                    "ZMQ Send Error",
+                    graphql_value!({ "internal_error": errmsg }),
+                )
+            }
         }
     }
 }
