@@ -1,17 +1,18 @@
-// use async_zmq::StreamExt;
+use async_zmq::StreamExt;
 use futures::TryFutureExt;
 use juniper::{GraphQLInputObject, GraphQLObject};
 use serde::{Deserialize, Serialize};
+use slog::info;
 use snafu::ResultExt;
 use sqlx::Connection;
 use std::convert::TryFrom;
 
 use crate::api::gql::Context;
 use crate::api::model::*;
-use crate::db::model::ProvideData;
+use crate::db::model::{EntityId, ProvideData};
 use crate::db::Db;
 use crate::error;
-use crate::fsm::FSM;
+use crate::fsm;
 
 /// The request body for a single index
 #[derive(Debug, Serialize, Deserialize, GraphQLInputObject)]
@@ -88,6 +89,14 @@ pub async fn create_index(
     async move {
         let state = &context.pool;
 
+        info!(
+            context.logger,
+            "Creating Index {} {} {}",
+            index_request.index_type,
+            index_request.data_source,
+            index_request.region
+        );
+
         let mut tx = state
             .conn()
             .and_then(Connection::begin)
@@ -109,25 +118,127 @@ pub async fn create_index(
                 details: "Could not create index",
             })?;
 
+        let id = entity.index_id; // We save the id for updating the status later.
         let index = Index::from(entity);
 
         tx.commit().await.context(error::DBError {
             details: "could not commit transaction",
         })?;
 
+        info!(context.logger, "Index initialized in Sqlite");
+
         // Now construct and initialize the Finite State Machine (FSM)
         // state is the name of the topic we're asking the publisher to broadcast message,
         // 5555 is the port
-        let mut fsm = FSM::new(index_type, data_source, region, String::from("state"), 5555)?;
+        let fsm = fsm::FSM::new(index_type, data_source, region, String::from("state"), 5555)?;
+
+        // Listen to FSM for updates
+        let ct2 = context.clone();
+        tokio::spawn(update_notifications(ct2, id));
 
         // Start the FSM
-        let _ = tokio::spawn(async move { fsm.exec().await })
-            .await
-            .context(error::TokioJoinError {
-                details: String::from("Could not run FSM to completion"),
-            })?;
+        tokio::spawn(fsm::exec(fsm));
+
+        // let _ = task_exec.await.context(error::TokioJoinError {
+        //     details: String::from("Could not run FSM to completion"),
+        // })?;
+
+        // let _ = task_update.await.context(error::TokioJoinError {
+        //     details: String::from("Could not update FSM to completion"),
+        // })?;
 
         Ok(IndexResponseBody::from(IndexResponseBody { index }))
     }
     .await
+}
+
+async fn update_notifications(context: Context, index_id: EntityId) -> Result<(), error::Error> {
+    // Ready a subscription connection to receive notifications from the FSM
+    let mut zmq = async_zmq::subscribe("tcp://127.0.0.1:5555")
+        .context(error::ZMQSocketError {
+            details: String::from("Could not subscribe on tcp://127.0.0.1:5555"),
+        })?
+        .connect()
+        .context(error::ZMQError {
+            details: String::from("Could not connect subscribe"),
+        })?;
+
+    zmq.set_subscribe("state")
+        .context(error::ZMQSubscribeError {
+            details: format!("Could not subscribe to '{}' topic", "state"),
+        })?;
+
+    info!(context.logger, "Subscribed to ZMQ Publications");
+
+    // and listen for notifications
+    while let Some(msg) = zmq.next().await {
+        // Received message is a type of Result<MessageBuf>
+        let msg = msg.context(error::ZMQRecvError {
+            details: String::from("ZMQ Reception Error"),
+        })?;
+
+        // The msg we receive is made of two parts, the topic, and the serialized status.
+        // Here, we skip the topic, and extract the second part.
+        let msg = msg
+            .iter()
+            .skip(1) // skip the topic
+            .next()
+            .ok_or(error::Error::MiscError {
+                details: String::from("Just one item in a multipart message. That is plain wrong!"),
+            })?
+            .as_str()
+            .ok_or(error::Error::MiscError {
+                details: String::from("Status Message is not valid UTF8"),
+            })?;
+
+        info!(context.logger, "Received: {}", msg);
+
+        // The msg we have left should be a serialized version of the status.
+        let status = serde_json::from_str(msg).context(error::SerdeJSONError {
+            details: String::from("Could not deserialize state"),
+        })?;
+
+        // We now have a valid status, so we proceed with updating the database.
+        let state = &context.pool;
+
+        let mut tx = state
+            .conn()
+            .and_then(Connection::begin)
+            .await
+            .context(error::DBError {
+                details: "could not retrieve transaction",
+            })?;
+
+        info!(
+            context.logger,
+            "Updating index {} with status {}", index_id, msg
+        );
+
+        let entity =
+            tx.update_index_status(index_id, msg)
+                .await
+                .context(error::DBProvideError {
+                    details: "Could not update index status",
+                })?;
+
+        info!(
+            context.logger,
+            "Index update successful {} => {}", entity.index_id, entity.status
+        );
+
+        tx.commit().await.context(error::DBError {
+            details: "could not commit transaction",
+        })?;
+
+        match status {
+            fsm::State::NotAvailable => {
+                break;
+            }
+            fsm::State::Available => {
+                break;
+            }
+            _ => {}
+        }
+    }
+    Ok(())
 }

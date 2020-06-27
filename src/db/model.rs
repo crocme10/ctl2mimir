@@ -29,6 +29,12 @@ pub trait ProvideData {
     ) -> ProvideResult<IndexEntity>;
 
     async fn get_all_indexes(&mut self) -> ProvideResult<Vec<IndexEntity>>;
+
+    async fn update_index_status(
+        &mut self,
+        index_id: EntityId,
+        status: &str,
+    ) -> ProvideResult<IndexEntity>;
 }
 
 pub type ProvideResult<T> = Result<T, ProvideError>;

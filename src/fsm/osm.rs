@@ -59,7 +59,6 @@ pub fn index_osm_region(
         command.arg("--import-poi");
     }
     command.arg("--city-level").arg(city_level.to_string());
-    println!("command: {:?}", command);
     let output = command.output().context(error::IOError {
         details: format!(
             "Could not create osm2mimir command using {}",

@@ -1,5 +1,6 @@
 //use futures::Stream;
 use juniper::{EmptySubscription, FieldResult, IntoFieldError, RootNode};
+use slog::info;
 use slog::Logger;
 // use sqlx::pool::PoolConnection;
 use sqlx::sqlite::SqlitePool;
@@ -43,9 +44,12 @@ impl Mutation {
         index: indexes::IndexRequestBody,
         context: &Context,
     ) -> FieldResult<indexes::IndexResponseBody> {
-        indexes::create_index(index, context)
+        info!(context.logger, "Calling create index");
+        let res = indexes::create_index(index, context)
             .await
-            .map_err(IntoFieldError::into_field_error)
+            .map_err(IntoFieldError::into_field_error);
+        info!(context.logger, "Done create index");
+        res
     }
 }
 

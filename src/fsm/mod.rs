@@ -213,48 +213,10 @@ impl FSM {
 
     pub async fn run(&mut self) {
         match &self.state {
-            State::NotAvailable => {
-                // println!("Not Available");
-                // println!("Sending Download Event");
-            }
-            State::DownloadingInProgress { started_at } => {
-                // println!(
-                //     "Downloading {} / {} / {}",
-                //     self.index_type, self.data_source, self.region
-                // );
-                match self.data_source.as_ref() {
-                    "cosmogony" => {
-                        match osm::download_osm_region(self.working_dir.clone(), &self.region) {
-                            Ok(file_path) => {
-                                let duration = started_at.elapsed().unwrap();
-                                self.events
-                                    .push_back(Event::DownloadingComplete(file_path, duration));
-                            }
-                            Err(err) => {
-                                self.events.push_back(Event::DownloadingError(format!(
-                                    "Could not download: {}",
-                                    err
-                                )));
-                            }
-                        }
-                    }
-                    "bano" => {
-                        match bano::download_bano_region(self.working_dir.clone(), &self.region) {
-                            Ok(file_path) => {
-                                let duration = started_at.elapsed().unwrap();
-                                self.events
-                                    .push_back(Event::DownloadingComplete(file_path, duration));
-                            }
-                            Err(err) => {
-                                self.events.push_back(Event::DownloadingError(format!(
-                                    "Could not download: {}",
-                                    err
-                                )));
-                            }
-                        }
-                    }
-                    "osm" => match osm::download_osm_region(self.working_dir.clone(), &self.region)
-                    {
+            State::NotAvailable => {}
+            State::DownloadingInProgress { started_at } => match self.data_source.as_ref() {
+                "cosmogony" => {
+                    match osm::download_osm_region(self.working_dir.clone(), &self.region) {
                         Ok(file_path) => {
                             let duration = started_at.elapsed().unwrap();
                             self.events
@@ -266,30 +228,58 @@ impl FSM {
                                 err
                             )));
                         }
-                    },
-                    "ntfs" => {
-                        match ntfs::download_ntfs_region(self.working_dir.clone(), &self.region) {
-                            Ok(file_path) => {
-                                let duration = started_at.elapsed().unwrap();
-                                self.events
-                                    .push_back(Event::DownloadingComplete(file_path, duration));
-                            }
-                            Err(err) => {
-                                self.events.push_back(Event::DownloadingError(format!(
-                                    "Could not download: {}",
-                                    err
-                                )));
-                            }
-                        }
-                    }
-                    _ => {
-                        self.events.push_back(Event::DownloadingError(format!(
-                            "Dont know how to download {}",
-                            &self.data_source
-                        )));
                     }
                 }
-            }
+                "bano" => {
+                    match bano::download_bano_region(self.working_dir.clone(), &self.region) {
+                        Ok(file_path) => {
+                            let duration = started_at.elapsed().unwrap();
+                            self.events
+                                .push_back(Event::DownloadingComplete(file_path, duration));
+                        }
+                        Err(err) => {
+                            self.events.push_back(Event::DownloadingError(format!(
+                                "Could not download: {}",
+                                err
+                            )));
+                        }
+                    }
+                }
+                "osm" => match osm::download_osm_region(self.working_dir.clone(), &self.region) {
+                    Ok(file_path) => {
+                        let duration = started_at.elapsed().unwrap();
+                        self.events
+                            .push_back(Event::DownloadingComplete(file_path, duration));
+                    }
+                    Err(err) => {
+                        self.events.push_back(Event::DownloadingError(format!(
+                            "Could not download: {}",
+                            err
+                        )));
+                    }
+                },
+                "ntfs" => {
+                    match ntfs::download_ntfs_region(self.working_dir.clone(), &self.region) {
+                        Ok(file_path) => {
+                            let duration = started_at.elapsed().unwrap();
+                            self.events
+                                .push_back(Event::DownloadingComplete(file_path, duration));
+                        }
+                        Err(err) => {
+                            self.events.push_back(Event::DownloadingError(format!(
+                                "Could not download: {}",
+                                err
+                            )));
+                        }
+                    }
+                }
+                _ => {
+                    self.events.push_back(Event::DownloadingError(format!(
+                        "Dont know how to download {}",
+                        &self.data_source
+                    )));
+                }
+            },
             State::DownloadingError { details: _ } => {
                 // We can't stay in downloading error state, we need to go back to not available
                 // to terminate the fsm
@@ -348,25 +338,12 @@ impl FSM {
                 file_path,
                 duration: _,
             } => {
-                // println!(
-                //     "Processed {} {} in {}s",
-                //     self.data_source,
-                //     self.region,
-                //     duration.as_secs()
-                // );
                 self.events.push_back(Event::Index(file_path.clone()));
             }
             State::IndexingInProgress {
                 file_path,
                 started_at,
             } => {
-                // println!(
-                //     "Indexing {} / {} / {} using {}",
-                //     self.index_type,
-                //     self.data_source,
-                //     self.region,
-                //     file_path.display()
-                // );
                 match self.data_source.as_ref() {
                     "bano" => {
                         match bano::index_bano_region(
@@ -471,7 +448,6 @@ impl FSM {
             }
             State::IndexingError { details: _ } => {
                 self.events.push_back(Event::Reset);
-                // println!("Indexing Error: {}", details);
             }
             State::Indexed { duration: _ } => {
                 self.events.push_back(Event::Validate);
@@ -487,28 +463,28 @@ impl FSM {
             State::Failure(_) => {}
         }
     }
+}
 
-    pub async fn exec(&mut self) -> Result<(), error::Error> {
-        self.events.push_back(Event::Download);
-        while let Some(event) = self.events.pop_front() {
-            self.next(event).await;
-            let i = self.topic.clone();
-            let j = serde_json::to_string(&self.state).unwrap();
-            let msg = vec![&i, &j];
-            let msg: Vec<Message> = msg.into_iter().map(Message::from).collect();
-            let res: MultipartIter<_, _> = msg.into();
-            self.publish.send(res).await.unwrap();
-            if let State::Failure(string) = &self.state {
-                println!("{}", string);
-                break;
-            } else {
-                self.run().await;
-            }
+pub async fn exec(mut fsm: FSM) -> Result<(), error::Error> {
+    fsm.events.push_back(Event::Download);
+    while let Some(event) = fsm.events.pop_front() {
+        fsm.next(event).await;
+        let i = fsm.topic.clone();
+        let j = serde_json::to_string(&fsm.state).unwrap();
+        let msg = vec![&i, &j];
+        let msg: Vec<Message> = msg.into_iter().map(Message::from).collect();
+        let res: MultipartIter<_, _> = msg.into();
+        fsm.publish.send(res).await.unwrap();
+        if let State::Failure(string) = &fsm.state {
+            println!("{}", string);
+            break;
+        } else {
+            fsm.run().await;
         }
-        self.publish.close().await.context(error::ZMQSendError {
-            details: format!("Could not close publishing endpoint"),
-        })
     }
+    fsm.publish.close().await.context(error::ZMQSendError {
+        details: format!("Could not close publishing endpoint"),
+    })
 }
 
 // TODO Move the following in a test

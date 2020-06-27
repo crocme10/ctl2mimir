@@ -22,7 +22,6 @@ pub fn index_bano_region(
         .arg(es.as_str())
         .arg("--input")
         .arg(filepath.clone());
-    println!("command: {:?}", command);
     let output = command.output().context(error::IOError {
         details: format!(
             "Could not create bano2mimir command using {}",

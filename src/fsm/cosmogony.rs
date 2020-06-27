@@ -21,7 +21,6 @@ pub fn index_cosmogony_region(
         .arg(es.as_str())
         .arg("--input")
         .arg(filepath.clone());
-    println!("command: {:?}", command);
     let output = command.output().context(error::IOError {
         details: format!(
             "Could not create cosmogony2mimir command using {}",
@@ -68,7 +67,6 @@ pub fn generate_cosmogony(
         .arg(inputpath.clone())
         .arg("--output")
         .arg(outputpath.clone());
-    println!("command: {:?}", command);
     let output = command.output().context(error::IOError {
         details: format!(
             "Could not create cosmogony command using {}",

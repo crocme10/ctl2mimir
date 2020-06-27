@@ -137,7 +137,6 @@ pub fn index_ntfs_region(
         .arg(es.as_str())
         .arg("--input")
         .arg(filepath.clone());
-    println!("command: {:?}", command);
     let output = command.output().context(error::IOError {
         details: format!(
             "Could not create ntfs2mimir command using {}",
