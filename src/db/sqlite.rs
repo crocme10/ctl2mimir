@@ -111,41 +111,22 @@ SELECT * FROM indexes WHERE index_id = last_insert_rowid();
         index_id: EntityId,
         status: &str,
     ) -> ProvideResult<IndexEntity> {
-        println!("About to update sqlite status {}", status);
-
         self.execute("SAVEPOINT update_index_status").await?;
 
-        // 1
-        let select_stmt = sqlx::query(
-            r#"
-SELECT * FROM indexes WHERE index_id = $1
-            "#,
-        )
-        .bind(index_id);
-
-        let rec = self
-            .fetch(select_stmt)
-            .next()
-            .await?
-            .map(|row| SqliteIndexEntity::from_row(&row).expect("invalid entity"))
-            .expect("Cursor");
-
-        println!("Precheck => {} {}", rec.status, rec.updated_at);
-
-        // 2
         let update_stmt = sqlx::query(
             r#"
 UPDATE indexes
-SET status = $2, updated_at = (STRFTIME('%s', 'now'))
-WHERE index_id = $1
+SET status = $1, updated_at = (STRFTIME('%s', 'now'))
+WHERE index_id = $2
             "#,
         )
-        .bind(index_id)
-        .bind(status);
+        .bind(status)
+        .bind(index_id);
 
         self.execute(update_stmt).await?;
+        // let count = self.execute(update_stmt).await?;
+        // println!("Count: {}", count);
 
-        // 3
         let select_stmt = sqlx::query(
             r#"
 SELECT * FROM indexes WHERE index_id = $1
@@ -160,11 +141,8 @@ SELECT * FROM indexes WHERE index_id = $1
             .map(|row| SqliteIndexEntity::from_row(&row).expect("invalid entity"))
             .expect("Cursor");
 
-        println!("Postcheck => {} {}", rec.status, rec.updated_at);
-
         self.execute("RELEASE update_index_status").await?;
 
-        println!("Done sqlite update => {}", rec.status);
         Ok(rec.into())
     }
 

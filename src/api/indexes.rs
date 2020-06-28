@@ -87,45 +87,19 @@ pub async fn create_index(
     context: &Context,
 ) -> Result<IndexResponseBody, error::Error> {
     async move {
-        let state = &context.pool;
-
-        info!(
-            context.logger,
-            "Creating Index {} {} {}",
-            index_request.index_type,
-            index_request.data_source,
-            index_request.region
-        );
-
-        let mut tx = state
-            .conn()
-            .and_then(Connection::begin)
-            .await
-            .context(error::DBError {
-                details: "could not retrieve transaction",
-            })?;
-
         let IndexRequestBody {
             index_type,
             data_source,
             region,
         } = index_request;
 
-        let entity = tx
-            .create_index(&index_type, &data_source, &region)
-            .await
-            .context(error::DBProvideError {
-                details: "Could not create index",
-            })?;
+        info!(
+            context.logger,
+            "Creating Index {} {} {}", index_type, data_source, region
+        );
 
-        let id = entity.index_id; // We save the id for updating the status later.
-        let index = Index::from(entity);
-
-        tx.commit().await.context(error::DBError {
-            details: "could not commit transaction",
-        })?;
-
-        info!(context.logger, "Index initialized in Sqlite");
+        let index = create_db(&context, &index_type, &data_source, &region).await?;
+        let id = index.index_id;
 
         // Now construct and initialize the Finite State Machine (FSM)
         // state is the name of the topic we're asking the publisher to broadcast message,
@@ -136,16 +110,7 @@ pub async fn create_index(
         let ct2 = context.clone();
         tokio::spawn(update_notifications(ct2, id));
 
-        // Start the FSM
         tokio::spawn(fsm::exec(fsm));
-
-        // let _ = task_exec.await.context(error::TokioJoinError {
-        //     details: String::from("Could not run FSM to completion"),
-        // })?;
-
-        // let _ = task_update.await.context(error::TokioJoinError {
-        //     details: String::from("Could not update FSM to completion"),
-        // })?;
 
         Ok(IndexResponseBody::from(IndexResponseBody { index }))
     }
@@ -191,44 +156,12 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
                 details: String::from("Status Message is not valid UTF8"),
             })?;
 
-        info!(context.logger, "Received: {}", msg);
-
         // The msg we have left should be a serialized version of the status.
         let status = serde_json::from_str(msg).context(error::SerdeJSONError {
             details: String::from("Could not deserialize state"),
         })?;
 
-        // We now have a valid status, so we proceed with updating the database.
-        let state = &context.pool;
-
-        let mut tx = state
-            .conn()
-            .and_then(Connection::begin)
-            .await
-            .context(error::DBError {
-                details: "could not retrieve transaction",
-            })?;
-
-        info!(
-            context.logger,
-            "Updating index {} with status {}", index_id, msg
-        );
-
-        let entity =
-            tx.update_index_status(index_id, msg)
-                .await
-                .context(error::DBProvideError {
-                    details: "Could not update index status",
-                })?;
-
-        info!(
-            context.logger,
-            "Index update successful {} => {}", entity.index_id, entity.status
-        );
-
-        tx.commit().await.context(error::DBError {
-            details: "could not commit transaction",
-        })?;
+        update_db(&context, index_id, msg).await?;
 
         match status {
             fsm::State::NotAvailable => {
@@ -241,4 +174,64 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
         }
     }
     Ok(())
+}
+
+async fn update_db(
+    context: &Context,
+    index_id: EntityId,
+    msg: &str,
+) -> Result<Index, error::Error> {
+    // We now have a valid status, so we proceed with updating the database.
+    let state = &context.pool;
+
+    let mut tx = state
+        .conn()
+        .and_then(Connection::begin)
+        .await
+        .context(error::DBError {
+            details: "could not retrieve transaction",
+        })?;
+
+    let entity = tx
+        // .create_index("foo", "bar", "baz")
+        .update_index_status(index_id, msg)
+        .await
+        .context(error::DBProvideError {
+            details: "Could not update index status",
+        })?;
+
+    tx.commit().await.context(error::DBError {
+        details: "could not commit transaction",
+    })?;
+
+    Ok(Index::from(entity))
+}
+
+async fn create_db(
+    context: &Context,
+    index_type: &str,
+    data_source: &str,
+    region: &str,
+) -> Result<Index, error::Error> {
+    let state = &context.pool;
+    let mut tx = state
+        .conn()
+        .and_then(Connection::begin)
+        .await
+        .context(error::DBError {
+            details: "could not retrieve transaction",
+        })?;
+
+    let entity = tx
+        .create_index(&index_type, &data_source, &region)
+        .await
+        .context(error::DBProvideError {
+            details: "Could not create index",
+        })?;
+
+    tx.commit().await.context(error::DBError {
+        details: "could not commit transaction",
+    })?;
+
+    Ok(Index::from(entity))
 }

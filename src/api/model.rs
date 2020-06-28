@@ -8,6 +8,7 @@ use crate::db::model::*;
 #[derive(Debug, Serialize, GraphQLObject)]
 #[serde(rename_all = "camelCase")]
 pub(in crate::api) struct Index {
+    pub index_id: EntityId,
     pub index_type: String,
     pub data_source: String,
     pub region: String,
@@ -19,6 +20,7 @@ pub(in crate::api) struct Index {
 impl From<IndexEntity> for Index {
     fn from(entity: IndexEntity) -> Self {
         let IndexEntity {
+            index_id,
             index_type,
             data_source,
             region,
@@ -29,6 +31,7 @@ impl From<IndexEntity> for Index {
         } = entity;
 
         Index {
+            index_id,
             index_type,
             data_source,
             region,
