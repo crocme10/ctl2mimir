@@ -1,13 +1,12 @@
 use clap::{App, Arg};
-// use futures::{Future, FutureExt, TryFutureExt};
-// use juniper_subscriptions::Coordinator;
-// use juniper_warp::subscriptions::graphql_subscriptions;
+use futures::{Future, FutureExt};
+use juniper_subscriptions::Coordinator;
+use juniper_warp::subscriptions::graphql_subscriptions;
 use slog::{info, o, Drain, Logger};
 use snafu::ResultExt;
-// use sqlx::pool::PoolConnection;
 use sqlx::sqlite::SqlitePool;
 use std::net::ToSocketAddrs;
-// use std::{pin::Pin, sync::Arc};
+use std::{pin::Pin, sync::Arc};
 use warp::{self, Filter};
 
 use delega::api::gql;
@@ -124,13 +123,43 @@ async fn run_server(
     /* This is ApiRoutes.Base */
     let graphql = warp::path!("graphql").and(graphql_filter);
 
+    let logger2 = logger.clone();
+    let pool2 = pool.clone();
+    let substate = warp::any().map(move || gql::Context {
+        pool: pool2.clone(),
+        logger: logger2.clone(),
+    });
+
+    let coordinator = Arc::new(juniper_subscriptions::Coordinator::new(gql::schema()));
+
+    let notifications = (warp::path("notifications")
+        .and(warp::ws())
+        .and(substate.clone())
+        .and(warp::any().map(move || Arc::clone(&coordinator)))
+        .map(
+            |ws: warp::ws::Ws,
+             context: gql::Context,
+             coordinator: Arc<Coordinator<'static, _, _, _, _, _>>| {
+                ws.on_upgrade(|websocket| -> Pin<Box<dyn Future<Output = ()> + Send>> {
+                    println!("On upgrade");
+                    graphql_subscriptions(websocket, coordinator, context)
+                        .map(|r| {
+                            println!("r: {:?}", r);
+                            if let Err(err) = r {
+                                println!("Websocket Error: {}", err);
+                            }
+                        })
+                        .boxed()
+                })
+            },
+        ))
+    .map(|reply| warp::reply::with_header(reply, "Sec-Websocket-Protocol", "graphql-ws"));
+
     let index = warp::fs::file("dist/index.html");
 
     let dir = warp::fs::dir("dist");
 
-    // let routes = graphiql.or(graphql).or(notifications).or(dir).or(index);
-
-    let routes = graphiql.or(graphql).or(dir).or(index);
+    let routes = graphiql.or(graphql).or(notifications).or(dir).or(index);
 
     let addr = addr
         .to_socket_addrs()
