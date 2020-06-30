@@ -104,7 +104,14 @@ pub async fn create_index(
         // Now construct and initialize the Finite State Machine (FSM)
         // state is the name of the topic we're asking the publisher to broadcast message,
         // 5555 is the port
-        let fsm = fsm::FSM::new(index_type, data_source, region, String::from("state"), 5555)?;
+        let fsm = fsm::FSM::new(
+            id,
+            index_type,
+            data_source,
+            region,
+            String::from("state"),
+            5555,
+        )?;
 
         // Listen to FSM for updates
         let ct2 = context.clone();
@@ -146,7 +153,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
         // Here, we skip the topic, and extract the second part.
         let msg = msg
             .iter()
-            .skip(1) // skip the topic
+            .skip(2) // skip the topic and the id // FIXME use the id
             .next()
             .ok_or(error::Error::MiscError {
                 details: String::from("Just one item in a multipart message. That is plain wrong!"),
@@ -193,7 +200,6 @@ async fn update_db(
         })?;
 
     let entity = tx
-        // .create_index("foo", "bar", "baz")
         .update_index_status(index_id, msg)
         .await
         .context(error::DBProvideError {

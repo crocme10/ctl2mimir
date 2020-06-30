@@ -6,21 +6,12 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use url::Url;
 
-// use async_zmq::StreamExt;
-// use clap::{App, Arg};
-// use snafu::ResultExt;
-
 mod bano;
 mod cosmogony;
 mod download;
 mod ntfs;
 mod osm;
 
-// use super::bano;
-// use super::cosmogony;
-// use super::error;
-// use super::ntfs;
-// use super::osm;
 use crate::error;
 
 // From https://gist.github.com/anonymous/ee3e4df093c136ced7b394dc7ffb78e1
@@ -85,6 +76,7 @@ enum Event {
 }
 
 pub struct FSM {
+    id: u32                  // Id of the index, used to identify the published notifications.
     state: State,            // Current state of the FSM
     working_dir: PathBuf,    // Where all the files will go (download, processed, ...)
     mimirs_dir: PathBuf,     // Where we can find executables XXX2mimir
@@ -100,6 +92,7 @@ pub struct FSM {
 
 impl FSM {
     pub fn new<S: Into<String>>(
+        index_id: u32,
         index_type: S,
         data_source: S,
         region: S,
@@ -116,6 +109,7 @@ impl FSM {
                 details: String::from("Could not bind socket for publication"),
             })?;
         Ok(FSM {
+            id: index_id,
             state: State::NotAvailable,
             working_dir: PathBuf::from("./work"),
             mimirs_dir: PathBuf::from("/home/matt/lab/rust/kisio/mimirsbrunn"),
@@ -470,8 +464,9 @@ pub async fn exec(mut fsm: FSM) -> Result<(), error::Error> {
     while let Some(event) = fsm.events.pop_front() {
         fsm.next(event).await;
         let i = fsm.topic.clone();
-        let j = serde_json::to_string(&fsm.state).unwrap();
-        let msg = vec![&i, &j];
+        let j = format!("{}", fsm.id);
+        let k = serde_json::to_string(&fsm.state).unwrap();
+        let msg = vec![&i, &j, &k]; // topic, index id, status
         let msg: Vec<Message> = msg.into_iter().map(Message::from).collect();
         let res: MultipartIter<_, _> = msg.into();
         fsm.publish.send(res).await.unwrap();
