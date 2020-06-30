@@ -7,7 +7,7 @@ use snafu::ResultExt;
 use sqlx::sqlite::SqlitePool;
 use std::net::ToSocketAddrs;
 use std::{pin::Pin, sync::Arc};
-use warp::{self, Filter};
+use warp::{self, http, Filter};
 
 use delega::api::gql;
 use delega::db;
@@ -114,6 +114,10 @@ async fn run_server(
         logger: logger1.clone(),
     });
 
+    let playground = warp::get()
+        .and(warp::path("playground"))
+        .and(playground_filter("/graphql", Some("/subscripitons")));
+
     let graphiql = warp::path("graphiql")
         .and(warp::path::end())
         .and(warp::get())
@@ -159,7 +163,12 @@ async fn run_server(
 
     let dir = warp::fs::dir("dist");
 
-    let routes = graphiql.or(graphql).or(notifications).or(dir).or(index);
+    let routes = playground
+        .or(graphiql)
+        .or(graphql)
+        .or(notifications)
+        .or(dir)
+        .or(index);
 
     let addr = addr
         .to_socket_addrs()
@@ -180,4 +189,30 @@ async fn run_server(
     warp::serve(routes).run(addr).await;
 
     Ok(())
+}
+
+/// Create a filter that replies with an HTML page containing GraphQL Playground. This does not handle routing, so you can mount it on any endpoint.
+pub fn playground_filter(
+    graphql_endpoint_url: &'static str,
+    subscriptions_endpoint_url: Option<&'static str>,
+) -> warp::filters::BoxedFilter<(http::Response<Vec<u8>>,)> {
+    warp::any()
+        .map(move || playground_response(graphql_endpoint_url, subscriptions_endpoint_url))
+        .boxed()
+}
+
+fn playground_response(
+    graphql_endpoint_url: &'static str,
+    subscriptions_endpoint_url: Option<&'static str>,
+) -> http::Response<Vec<u8>> {
+    http::Response::builder()
+        .header("content-type", "text/html;charset=utf-8")
+        .body(
+            juniper::http::playground::playground_source(
+                graphql_endpoint_url,
+                subscriptions_endpoint_url,
+            )
+            .into_bytes(),
+        )
+        .expect("response is valid")
 }
