@@ -76,7 +76,7 @@ enum Event {
 }
 
 pub struct FSM {
-    id: u32                  // Id of the index, used to identify the published notifications.
+    id: i32,                 // Id of the index, used to identify the published notifications.
     state: State,            // Current state of the FSM
     working_dir: PathBuf,    // Where all the files will go (download, processed, ...)
     mimirs_dir: PathBuf,     // Where we can find executables XXX2mimir
@@ -92,7 +92,7 @@ pub struct FSM {
 
 impl FSM {
     pub fn new<S: Into<String>>(
-        index_id: u32,
+        index_id: i32,
         index_type: S,
         data_source: S,
         region: S,
@@ -469,6 +469,7 @@ pub async fn exec(mut fsm: FSM) -> Result<(), error::Error> {
         let msg = vec![&i, &j, &k]; // topic, index id, status
         let msg: Vec<Message> = msg.into_iter().map(Message::from).collect();
         let res: MultipartIter<_, _> = msg.into();
+        println!("Publishing {}: {}", j, k);
         fsm.publish.send(res).await.unwrap();
         if let State::Failure(string) = &fsm.state {
             println!("{}", string);

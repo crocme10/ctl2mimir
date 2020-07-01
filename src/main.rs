@@ -9,9 +9,9 @@ use std::net::ToSocketAddrs;
 use std::{pin::Pin, sync::Arc};
 use warp::{self, http, Filter};
 
-use delega::api::gql;
-use delega::db;
-use delega::error;
+use ctl2mimir::api::gql;
+use ctl2mimir::db;
+use ctl2mimir::error;
 
 #[tokio::main]
 async fn main() -> Result<(), error::Error> {
@@ -116,7 +116,7 @@ async fn run_server(
 
     let playground = warp::get()
         .and(warp::path("playground"))
-        .and(playground_filter("/graphql", Some("/subscripitons")));
+        .and(playground_filter("/graphql", Some("/subscriptions")));
 
     let graphiql = warp::path("graphiql")
         .and(warp::path::end())
@@ -136,7 +136,7 @@ async fn run_server(
 
     let coordinator = Arc::new(juniper_subscriptions::Coordinator::new(gql::schema()));
 
-    let notifications = (warp::path("notifications")
+    let notifications = (warp::path("subscriptions")
         .and(warp::ws())
         .and(substate.clone())
         .and(warp::any().map(move || Arc::clone(&coordinator)))

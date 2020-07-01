@@ -112,6 +112,13 @@ pub enum Error {
         source: ProvideError,
         backtrace: Backtrace,
     },
+
+    #[snafu(display("Parse Int Error: {} => {}", details, source))]
+    #[snafu(visibility(pub))]
+    ParseIntError {
+        details: String,
+        source: std::num::ParseIntError,
+    },
 }
 
 impl IntoFieldError for Error {
@@ -213,6 +220,14 @@ impl IntoFieldError for Error {
                 let errmsg = format!("{}", err);
                 FieldError::new(
                     "ZMQ Send Error",
+                    graphql_value!({ "internal_error": errmsg }),
+                )
+            }
+
+            err @ Error::ParseIntError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new(
+                    "Parse Int Error",
                     graphql_value!({ "internal_error": errmsg }),
                 )
             }

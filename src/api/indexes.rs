@@ -2,7 +2,7 @@ use async_zmq::StreamExt;
 use futures::TryFutureExt;
 use juniper::{GraphQLInputObject, GraphQLObject};
 use serde::{Deserialize, Serialize};
-use slog::info;
+use slog::{debug, info};
 use snafu::ResultExt;
 use sqlx::Connection;
 use std::convert::TryFrom;
@@ -23,16 +23,20 @@ pub struct IndexRequestBody {
 }
 
 /// The response body for a single index
-///
-/// [API Spec](https://github.com/gothinkster/realworld/tree/master/api#single-index)
 #[derive(Debug, Serialize, GraphQLObject)]
 pub struct IndexResponseBody {
     index: Index,
 }
 
+/// The response body for a stream of status update The status is untyped (its just a string),
+/// because the State type is a rich enum type, which juniper does not support.
+#[derive(Debug, Serialize, GraphQLObject)]
+pub struct IndexStatusUpdateBody {
+    pub id: EntityId,
+    pub status: String,
+}
+
 /// The response body for multiple indexes
-///
-/// [API Spec](https://github.com/gothinkster/realworld/tree/master/api#multiple-comments)
 #[derive(Debug, Serialize, GraphQLObject)]
 #[serde(rename_all = "camelCase")]
 pub struct MultIndexesResponseBody {
@@ -116,8 +120,10 @@ pub async fn create_index(
         // Listen to FSM for updates
         let ct2 = context.clone();
         tokio::spawn(update_notifications(ct2, id));
+        info!(context.logger, "Listening to state changes");
 
         tokio::spawn(fsm::exec(fsm));
+        info!(context.logger, "Running FSM");
 
         Ok(IndexResponseBody::from(IndexResponseBody { index }))
     }
@@ -142,6 +148,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
 
     info!(context.logger, "Subscribed to ZMQ Publications");
 
+    let logger = context.logger.clone();
     // and listen for notifications
     while let Some(msg) = zmq.next().await {
         // Received message is a type of Result<MessageBuf>
@@ -149,7 +156,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
             details: String::from("ZMQ Reception Error"),
         })?;
 
-        // The msg we receive is made of two parts, the topic, and the serialized status.
+        // The msg we receive is made of three parts, the topic, the id, and the serialized status.
         // Here, we skip the topic, and extract the second part.
         let msg = msg
             .iter()
@@ -163,6 +170,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
                 details: String::from("Status Message is not valid UTF8"),
             })?;
 
+        debug!(logger, "API Received {}", msg);
         // The msg we have left should be a serialized version of the status.
         let status = serde_json::from_str(msg).context(error::SerdeJSONError {
             details: String::from("Could not deserialize state"),
