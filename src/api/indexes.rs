@@ -82,12 +82,13 @@ pub async fn list_indexes(context: &Context) -> Result<MultIndexesResponseBody, 
 
         Ok(MultIndexesResponseBody::from(indexes))
     }
-    .await
+        .await
 }
 
 /// Create a new index
 pub async fn create_index(
     index_request: IndexRequestBody,
+    es: String,
     context: &Context,
 ) -> Result<IndexResponseBody, error::Error> {
     async move {
@@ -113,6 +114,7 @@ pub async fn create_index(
             index_type,
             data_source,
             region,
+            es,
             String::from("state"),
             5555,
         )?;
@@ -127,7 +129,7 @@ pub async fn create_index(
 
         Ok(IndexResponseBody::from(IndexResponseBody { index }))
     }
-    .await
+        .await
 }
 
 async fn update_notifications(context: Context, index_id: EntityId) -> Result<(), error::Error> {

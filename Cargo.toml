@@ -12,7 +12,8 @@ clap = "2.33.1"
 dotenv = "0.15"
 futures = { version = "0.3" }
 juniper = { git="https://github.com/graphql-rust/juniper.git", features = ["chrono"] }
-juniper_subscriptions = { git="https://github.com/graphql-rust/juniper.git" }
+# juniper_subscriptions = { git="https://github.com/graphql-rust/juniper.git" }
+juniper_graphql_ws = { git="https://github.com/graphql-rust/juniper.git" }
 juniper_warp = { git="https://github.com/graphql-rust/juniper.git", features = ["subscriptions"] }
 reqwest = { version = "0.10.6", features = [ "blocking" ] }
 serde = { version = "1.0", features = [ "derive" ] }

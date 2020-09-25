@@ -4,6 +4,7 @@ use slog::Logger;
 use slog::{debug, info};
 use snafu::ResultExt;
 use sqlx::sqlite::SqlitePool;
+use std::env;
 use std::pin::Pin;
 
 use super::indexes;
@@ -48,7 +49,11 @@ impl Mutation {
         context: &Context,
     ) -> FieldResult<indexes::IndexResponseBody> {
         info!(context.logger, "Calling create index");
-        let res = indexes::create_index(index, context)
+        let key = "ES_CONN_STR";
+        let es = env::var(key).context(error::EnvError {
+            details: format!("Could not retrieve environment variable {}", key),
+        })?;
+        let res = indexes::create_index(index, es, context)
             .await
             .map_err(IntoFieldError::into_field_error);
         info!(context.logger, "Done create index");

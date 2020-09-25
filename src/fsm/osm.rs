@@ -39,8 +39,6 @@ pub fn index_osm_region(
     city_level: u32,
 ) -> Result<(), error::Error> {
     let mut execpath = mimirs_dir;
-    execpath.push("target");
-    execpath.push("release");
     execpath.push("osm2mimir");
     // FIXME Need test file exists
     let mut command = Command::new(&execpath);

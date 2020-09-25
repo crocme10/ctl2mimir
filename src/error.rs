@@ -14,7 +14,7 @@ pub enum Error {
     #[snafu(visibility(pub))]
     EnvError {
         details: String,
-        source: dotenv::Error,
+        source: std::env::VarError,
         backtrace: Backtrace,
     },
 
@@ -34,7 +34,7 @@ pub enum Error {
         backtrace: Backtrace,
     },
 
-    #[snafu(display("UrL Error: {} {}", details, source))]
+    #[snafu(display("URL Error: {} {}", details, source))]
     #[snafu(visibility(pub))]
     URLError {
         source: url::ParseError,

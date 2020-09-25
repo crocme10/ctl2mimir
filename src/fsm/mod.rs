@@ -96,6 +96,7 @@ impl FSM {
         index_type: S,
         data_source: S,
         region: S,
+        es: String,
         topic: String,
         port: u32,
     ) -> Result<Self, error::Error> {
@@ -108,14 +109,17 @@ impl FSM {
             .context(error::ZMQError {
                 details: String::from("Could not bind socket for publication"),
             })?;
+        let es = Url::parse(&es).context(error::URLError {
+            details: format!("Could not parse Elasticsearch URL '{}'", es),
+        })?;
         Ok(FSM {
             id: index_id,
             state: State::NotAvailable,
             working_dir: PathBuf::from("./work"),
-            mimirs_dir: PathBuf::from("/home/matt/lab/rust/kisio/mimirsbrunn"),
-            cosmogony_dir: PathBuf::from("/home/matt/lab/rust/kisio/cosmogony"),
+            mimirs_dir: PathBuf::from("."),
+            cosmogony_dir: PathBuf::from("."),
             events: VecDeque::new(),
-            es: Url::parse("http://localhost:9200").unwrap(),
+            es,
             index_type: index_type.into(),
             data_source: data_source.into(),
             region: region.into(),

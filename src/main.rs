@@ -1,13 +1,13 @@
 use clap::{App, Arg};
-use futures::{Future, FutureExt};
-use juniper_subscriptions::Coordinator;
-use juniper_warp::subscriptions::graphql_subscriptions;
+use futures::FutureExt;
+use juniper_graphql_ws::ConnectionConfig;
+use juniper_warp::{playground_filter, subscriptions::serve_graphql_ws};
 use slog::{info, o, Drain, Logger};
 use snafu::ResultExt;
 use sqlx::sqlite::SqlitePool;
 use std::net::ToSocketAddrs;
-use std::{pin::Pin, sync::Arc};
-use warp::{self, http, Filter};
+use std::sync::Arc;
+use warp::{self, Filter};
 
 use ctl2mimir::api::gql;
 use ctl2mimir::db;
@@ -107,68 +107,56 @@ async fn run_server(
     logger: Logger,
     pool: SqlitePool,
 ) -> Result<(), error::Error> {
-    let logger1 = logger.clone();
-    let pool1 = pool.clone();
-    let state = warp::any().map(move || gql::Context {
-        pool: pool1.clone(),
-        logger: logger1.clone(),
-    });
-
     let playground = warp::get()
         .and(warp::path("playground"))
         .and(playground_filter("/graphql", Some("/subscriptions")));
 
-    let graphiql = warp::path("graphiql")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(juniper_warp::graphiql_filter("/graphql", None));
+    let logger1 = logger.clone();
+    let pool1 = pool.clone();
+    let qm_state1 = warp::any().map(move || gql::Context {
+        pool: pool1.clone(),
+        logger: logger1.clone(),
+    });
 
-    let graphql_filter = juniper_warp::make_graphql_filter(gql::schema(), state.boxed());
-    /* This is ApiRoutes.Base */
-    let graphql = warp::path!("graphql").and(graphql_filter);
+    let qm_schema = gql::schema();
+    let graphql = warp::post()
+        .and(warp::path("graphql"))
+        .and(juniper_warp::make_graphql_filter(
+            qm_schema,
+            qm_state1.boxed(),
+        ));
+
+    let root_node = Arc::new(gql::schema());
 
     let logger2 = logger.clone();
     let pool2 = pool.clone();
-    let substate = warp::any().map(move || gql::Context {
+    let qm_state2 = warp::any().map(move || gql::Context {
         pool: pool2.clone(),
         logger: logger2.clone(),
     });
 
-    let coordinator = Arc::new(juniper_subscriptions::Coordinator::new(gql::schema()));
-
-    let notifications = (warp::path("subscriptions")
+    let notifications = warp::path("subscriptions")
         .and(warp::ws())
-        .and(substate.clone())
-        .and(warp::any().map(move || Arc::clone(&coordinator)))
-        .map(
-            |ws: warp::ws::Ws,
-             context: gql::Context,
-             coordinator: Arc<Coordinator<'static, _, _, _, _, _>>| {
-                ws.on_upgrade(|websocket| -> Pin<Box<dyn Future<Output = ()> + Send>> {
-                    println!("On upgrade");
-                    graphql_subscriptions(websocket, coordinator, context)
-                        .map(|r| {
-                            println!("r: {:?}", r);
-                            if let Err(err) = r {
-                                println!("Websocket Error: {}", err);
-                            }
-                        })
-                        .boxed()
-                })
-            },
-        ))
-    .map(|reply| warp::reply::with_header(reply, "Sec-Websocket-Protocol", "graphql-ws"));
+        .and(qm_state2.clone())
+        .map(move |ws: warp::ws::Ws, qm_state| {
+            let root_node = root_node.clone();
+            ws.on_upgrade(move |websocket| async move {
+                serve_graphql_ws(websocket, root_node, ConnectionConfig::new(qm_state))
+                    .map(|r| {
+                        if let Err(e) = r {
+                            println!("Websocket err: {}", e);
+                        }
+                    })
+                    .await
+            })
+        })
+        .map(|reply| warp::reply::with_header(reply, "Sec-Websocket-Protocol", "graphql-ws"));
 
     let index = warp::fs::file("dist/index.html");
 
     let dir = warp::fs::dir("dist");
 
-    let routes = playground
-        .or(graphiql)
-        .or(graphql)
-        .or(notifications)
-        .or(dir)
-        .or(index);
+    let routes = playground.or(graphql).or(notifications).or(dir).or(index);
 
     let addr = addr
         .to_socket_addrs()
@@ -189,30 +177,4 @@ async fn run_server(
     warp::serve(routes).run(addr).await;
 
     Ok(())
-}
-
-/// Create a filter that replies with an HTML page containing GraphQL Playground. This does not handle routing, so you can mount it on any endpoint.
-pub fn playground_filter(
-    graphql_endpoint_url: &'static str,
-    subscriptions_endpoint_url: Option<&'static str>,
-) -> warp::filters::BoxedFilter<(http::Response<Vec<u8>>,)> {
-    warp::any()
-        .map(move || playground_response(graphql_endpoint_url, subscriptions_endpoint_url))
-        .boxed()
-}
-
-fn playground_response(
-    graphql_endpoint_url: &'static str,
-    subscriptions_endpoint_url: Option<&'static str>,
-) -> http::Response<Vec<u8>> {
-    http::Response::builder()
-        .header("content-type", "text/html;charset=utf-8")
-        .body(
-            juniper::http::playground::playground_source(
-                graphql_endpoint_url,
-                subscriptions_endpoint_url,
-            )
-            .into_bytes(),
-        )
-        .expect("response is valid")
 }

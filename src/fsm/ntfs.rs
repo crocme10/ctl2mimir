@@ -127,8 +127,6 @@ pub fn index_ntfs_region(
     filepath: PathBuf,
 ) -> Result<(), error::Error> {
     let mut execpath = mimirs_dir;
-    execpath.push("target");
-    execpath.push("release");
     execpath.push("ntfs2mimir");
     // FIXME Need test file exists
     let mut command = Command::new(&execpath);

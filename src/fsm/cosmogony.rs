@@ -11,8 +11,6 @@ pub fn index_cosmogony_region(
     filepath: PathBuf,
 ) -> Result<(), error::Error> {
     let mut execpath = mimirs_dir;
-    execpath.push("target");
-    execpath.push("release");
     execpath.push("cosmogony2mimir");
     // FIXME Need test file exists
     let mut command = Command::new(&execpath);
@@ -55,8 +53,6 @@ pub fn generate_cosmogony(
     }
     outputpath.push(&filename);
     let mut execpath = cosmogony_dir;
-    execpath.push("target");
-    execpath.push("release");
     execpath.push("cosmogony");
     // FIXME Need to test exec exists
     let mut command = Command::new(&execpath);

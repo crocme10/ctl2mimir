@@ -12,8 +12,8 @@ pub fn index_bano_region(
     filepath: PathBuf,
 ) -> Result<(), error::Error> {
     let mut execpath = mimirs_dir;
-    execpath.push("target");
-    execpath.push("release");
+    // execpath.push("target");
+    // execpath.push("release");
     execpath.push("bano2mimir");
     // FIXME Need test file exists
     let mut command = Command::new(&execpath);

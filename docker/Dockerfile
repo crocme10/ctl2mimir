@@ -37,9 +37,10 @@ RUN groupadd $APP_USER \
 COPY --from=builder /ctl2mimir/target/release/server ${APP}/server
 COPY --from=builder /ctl2mimir/ctl2mimir.db ${APP}/ctl2mimir.db
 
+RUN mkdir ${APP}/work
 RUN chown -R $APP_USER:$APP_USER ${APP}
 
 USER $APP_USER
 WORKDIR ${APP}
 
-CMD ["./server", "-u", "sqlite://ctl2mimir.db"]
+CMD ["./server", "-h", "0.0.0.0", "-u", "sqlite://ctl2mimir.db"]
