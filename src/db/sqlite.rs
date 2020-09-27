@@ -1,13 +1,19 @@
 use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
+use slog::{debug, info, o, Logger};
+use snafu::ResultExt;
 use sqlx::error::DatabaseError;
 use sqlx::pool::PoolConnection;
 use sqlx::sqlite::{SqliteError, SqliteQueryAs};
 use sqlx::{Cursor, Executor, FromRow, SqliteConnection, SqlitePool};
 use std::convert::TryFrom;
+use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
 
-use crate::db::model::*;
-use crate::db::Db;
+use super::model::*;
+use super::Db;
+use crate::error;
 
 impl TryFrom<&SqliteError> for ProvideError {
     type Error = ();
@@ -163,4 +169,93 @@ SELECT * FROM indexes WHERE index_id = $1
 
         Ok(entities)
     }
+}
+
+pub async fn init_db(conn_str: &str, logger: Logger) -> Result<(), error::Error> {
+    info!(logger, "Initializing  DB @ {}", conn_str);
+    migration_down(conn_str, &logger).await?;
+    migration_up(conn_str, &logger).await?;
+    Ok(())
+}
+
+pub async fn migration_up(conn_str: &str, logger: &Logger) -> Result<(), error::Error> {
+    let clogger = logger.new(o!("database" => String::from(conn_str)));
+    debug!(clogger, "Movine Up");
+    // This is essentially running 'psql $DATABASE_URL < db/init.sql', and logging the
+    // psql output.
+    // FIXME This relies on a command psql, which is not desibable.
+    // We could alternatively try to use sqlx...
+    // There may be a tool for doing migrations.
+    let mut cmd = Command::new("movine");
+    cmd.env("DATABASE_URL", conn_str);
+    cmd.arg("up");
+    cmd.stdout(Stdio::piped());
+
+    let mut child = cmd.spawn().context(error::TokioIOError {
+        details: String::from("Failed to execute movine"),
+    })?;
+
+    let stdout = child.stdout.take().ok_or(error::Error::MiscError {
+        details: String::from("child did not have a handle to stdout"),
+    })?;
+
+    let mut reader = BufReader::new(stdout).lines();
+
+    // Ensure the child process is spawned in the runtime so it can
+    // make progress on its own while we await for any output.
+    tokio::spawn(async {
+        // FIXME Need to do something about logging this and returning an error.
+        let _status = child.await.expect("child process encountered an error");
+        // println!("child status was: {}", status);
+    });
+    debug!(clogger, "Spawned migration up");
+
+    while let Some(line) = reader.next_line().await.context(error::TokioIOError {
+        details: String::from("Could not read from piped output"),
+    })? {
+        debug!(clogger, "movine: {}", line);
+    }
+
+    Ok(())
+}
+
+pub async fn migration_down(conn_str: &str, logger: &Logger) -> Result<(), error::Error> {
+    let clogger = logger.new(o!("database" => String::from(conn_str)));
+    debug!(clogger, "Movine Down");
+    // This is essentially running 'psql $DATABASE_URL < db/init.sql', and logging the
+    // psql output.
+    // FIXME This relies on a command psql, which is not desibable.
+    // We could alternatively try to use sqlx...
+    // There may be a tool for doing migrations.
+    let mut cmd = Command::new("movine");
+    cmd.env("DATABASE_URL", conn_str);
+    cmd.arg("down");
+    cmd.stdout(Stdio::piped());
+
+    let mut child = cmd.spawn().context(error::TokioIOError {
+        details: String::from("Failed to execute movine"),
+    })?;
+
+    let stdout = child.stdout.take().ok_or(error::Error::MiscError {
+        details: String::from("child did not have a handle to stdout"),
+    })?;
+
+    let mut reader = BufReader::new(stdout).lines();
+
+    // Ensure the child process is spawned in the runtime so it can
+    // make progress on its own while we await for any output.
+    tokio::spawn(async {
+        // FIXME Need to do something about logging this and returning an error.
+        let _status = child.await.expect("child process encountered an error");
+        // println!("child status was: {}", status);
+    });
+    debug!(clogger, "Spawned migration down");
+
+    while let Some(line) = reader.next_line().await.context(error::TokioIOError {
+        details: String::from("Could not read from piped output"),
+    })? {
+        debug!(clogger, "movine: {}", line);
+    }
+
+    Ok(())
 }

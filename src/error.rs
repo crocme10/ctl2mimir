@@ -10,9 +10,16 @@ pub enum Error {
     #[snafu(visibility(pub))]
     MiscError { details: String },
 
+    #[snafu(display("Config Error: {} => {}", details, source))]
+    #[snafu(visibility(pub))]
+    ConfigError {
+        details: String,
+        source: config::ConfigError,
+    },
+
     #[snafu(display("Environment Variable Error: {} => {}", details, source))]
     #[snafu(visibility(pub))]
-    EnvError {
+    EnvVarError {
         details: String,
         source: std::env::VarError,
         backtrace: Backtrace,
@@ -41,10 +48,11 @@ pub enum Error {
         details: String,
     },
 
-    #[snafu(display("Tokio IO Error: {}", source))]
+    #[snafu(display("Tokio IO Error: {}: {}", details, source))]
     #[snafu(visibility(pub))]
     TokioIOError {
         source: tokio::io::Error,
+        details: String,
         backtrace: Backtrace,
     },
 
@@ -128,7 +136,14 @@ impl IntoFieldError for Error {
                 let errmsg = format!("{}", err);
                 FieldError::new("User Error", graphql_value!({ "internal_error": errmsg }))
             }
-            err @ Error::EnvError { .. } => {
+            err @ Error::ConfigError { .. } => {
+                let errmsg = format!("{}", err);
+                FieldError::new(
+                    "Configuration Error",
+                    graphql_value!({ "internal_error": errmsg }),
+                )
+            }
+            err @ Error::EnvVarError { .. } => {
                 let errmsg = format!("{}", err);
                 FieldError::new(
                     "Environment Error",

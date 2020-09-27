@@ -50,7 +50,7 @@ impl Mutation {
     ) -> FieldResult<indexes::IndexResponseBody> {
         info!(context.logger, "Calling create index");
         let key = "ES_CONN_STR";
-        let es = env::var(key).context(error::EnvError {
+        let es = env::var(key).context(error::EnvVarError {
             details: format!("Could not retrieve environment variable {}", key),
         })?;
         let res = indexes::create_index(index, es, context)
