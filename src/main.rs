@@ -3,7 +3,7 @@ use slog::{o, warn, Drain};
 
 mod init;
 mod server;
-mod test;
+// mod test;
 
 use ctl2mimir::error;
 
@@ -54,7 +54,7 @@ async fn main() -> Result<(), error::Error> {
     match matches.subcommand() {
         ("run", Some(sm)) => server::run(sm, logger).await,
         ("init", Some(sm)) => init::init(sm, logger).await,
-        ("test", Some(sm)) => test::test(sm, logger).await,
+        // ("test", Some(sm)) => test::test(sm, logger).await,
         _ => {
             warn!(logger, "Unrecognized subcommand");
             Err(error::Error::MiscError {
