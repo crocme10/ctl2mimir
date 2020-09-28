@@ -181,13 +181,8 @@ pub async fn init_db(conn_str: &str, logger: Logger) -> Result<(), error::Error>
 pub async fn migration_up(conn_str: &str, logger: &Logger) -> Result<(), error::Error> {
     let clogger = logger.new(o!("database" => String::from(conn_str)));
     debug!(clogger, "Movine Up");
-    // This is essentially running 'psql $DATABASE_URL < db/init.sql', and logging the
-    // psql output.
-    // FIXME This relies on a command psql, which is not desibable.
-    // We could alternatively try to use sqlx...
-    // There may be a tool for doing migrations.
     let mut cmd = Command::new("movine");
-    cmd.env("DATABASE_URL", conn_str);
+    cmd.env("SQLITE_FILE", conn_str);
     cmd.arg("up");
     cmd.stdout(Stdio::piped());
 
@@ -222,13 +217,8 @@ pub async fn migration_up(conn_str: &str, logger: &Logger) -> Result<(), error::
 pub async fn migration_down(conn_str: &str, logger: &Logger) -> Result<(), error::Error> {
     let clogger = logger.new(o!("database" => String::from(conn_str)));
     debug!(clogger, "Movine Down");
-    // This is essentially running 'psql $DATABASE_URL < db/init.sql', and logging the
-    // psql output.
-    // FIXME This relies on a command psql, which is not desibable.
-    // We could alternatively try to use sqlx...
-    // There may be a tool for doing migrations.
     let mut cmd = Command::new("movine");
-    cmd.env("DATABASE_URL", conn_str);
+    cmd.env("SQLITE_FILE", conn_str);
     cmd.arg("down");
     cmd.stdout(Stdio::piped());
 

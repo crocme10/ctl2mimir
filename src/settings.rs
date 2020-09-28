@@ -85,8 +85,8 @@ impl Settings {
 
         // Now we take care of the database.url, which can be had from environment variables.
         let key = match mode.as_str() {
-            "testing" => "DATABASE_TEST_URL",
-            _ => "DATABASE_URL",
+            "testing" => "SQLITE_TEST_FILE",
+            _ => "SQLITE_FILE",
         };
 
         let db_url = env::var(key).context(error::EnvVarError {

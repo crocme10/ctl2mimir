@@ -103,11 +103,14 @@ impl FSM {
         let zmq_endpoint = format!("tcp://{}:{}", settings.zmq.host, settings.zmq.port);
         let zmq = async_zmq::publish(&zmq_endpoint)
             .context(error::ZMQSocketError {
-                details: format!("Could not publish on endpoint '{}'", zmq_endpoint),
+                details: format!("Could not publish on endpoint '{}'", &zmq_endpoint),
             })?
             .bind()
             .context(error::ZMQError {
-                details: String::from("Could not bind socket for publication"),
+                details: format!(
+                    "Could not bind socket for publication on endpoint '{}'",
+                    &zmq_endpoint
+                ),
             })?;
         let elasticsearch_endpoint = format!(
             "http://{}:{}",

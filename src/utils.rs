@@ -26,7 +26,7 @@ pub fn get_service_url() -> String {
 pub fn get_database_url() -> String {
     let mode = env::var("RUN_MODE").expect("RUN_MODE should be set");
     match mode.as_str() {
-        "testing" => env::var("DATABASE_TEST_URL").expect("DATABASE_TEST_URL should be set"),
-        _ => env::var("DATABASE_URL").expect("DATABASE_URL should be set"),
+        "testing" => env::var("SQLITE_TEST_FILE").expect("SQLITE_TEST_FILE should be set"),
+        _ => env::var("SQLITE_FILE").expect("SQLITE_FILE should be set"),
     }
 }

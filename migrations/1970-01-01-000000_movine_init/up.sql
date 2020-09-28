@@ -1,0 +1,8 @@
+CREATE TABLE movine_migrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    name TEXT NOT NULL,
+    hash TEXT NOT NULL,
+    down_sql TEXT
+);

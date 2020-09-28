@@ -2,10 +2,10 @@ debug = true
 mode = "development"
 
 [database]
-url = "sqlite:///hello.db"
+url = "hello.db"
 
 [zmq]
-host = "localhost"
+host = "127.0.0.1"
 port = "5555"
 
 [elasticsearch]
