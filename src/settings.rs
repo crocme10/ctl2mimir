@@ -7,6 +7,25 @@ use std::env;
 use super::error;
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct Zmq {
+    pub host: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Elasticsearch {
+    pub host: String,
+    pub port: u16,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Work {
+    pub working_dir: String,
+    pub mimirsbrunn_dir: String,
+    pub cosmogony_dir: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Database {
     pub url: String,
 }
@@ -24,6 +43,9 @@ pub struct Settings {
     pub mode: String,
     pub database: Database,
     pub service: Service,
+    pub zmq: Zmq,
+    pub elasticsearch: Elasticsearch,
+    pub work: Work,
 }
 
 // TODO Parameterize the config directory

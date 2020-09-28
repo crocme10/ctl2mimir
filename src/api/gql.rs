@@ -1,23 +1,20 @@
 use futures::Stream;
 use juniper::{FieldError, FieldResult, IntoFieldError, RootNode};
-use slog::Logger;
 use slog::{debug, info};
 use snafu::ResultExt;
-use sqlx::sqlite::SqlitePool;
-use std::env;
 use std::pin::Pin;
 
 use super::indexes;
 use crate::error;
-use crate::fsm::State;
+use crate::fsm;
+use crate::state;
 
 // FIXME. The context should be generic in the type of the pool. But the macro derive
 // juniper::graphql_object doesn't support yet generic contexts.
 // See https://github.com/davidpdrsn/juniper-from-schema/issues/101
 #[derive(Debug, Clone)]
 pub struct Context {
-    pub pool: SqlitePool,
-    pub logger: Logger,
+    pub state: state::State,
 }
 
 impl juniper::Context for Context {}
@@ -48,15 +45,11 @@ impl Mutation {
         index: indexes::IndexRequestBody,
         context: &Context,
     ) -> FieldResult<indexes::IndexResponseBody> {
-        info!(context.logger, "Calling create index");
-        let key = "ES_CONN_STR";
-        let es = env::var(key).context(error::EnvVarError {
-            details: format!("Could not retrieve environment variable {}", key),
-        })?;
-        let res = indexes::create_index(index, es, context)
+        info!(context.state.logger, "Calling create index");
+        let res = indexes::create_index(index, context)
             .await
             .map_err(IntoFieldError::into_field_error);
-        info!(context.logger, "Done create index");
+        info!(context.state.logger, "Done create index");
         res
     }
 }
@@ -70,9 +63,13 @@ pub struct Subscription;
 impl Subscription {
     async fn notifications(context: &Context) -> IndexStatusUpdateStream {
         // Ready a subscription connection to receive notifications from the FSM
-        let zmq = async_zmq::subscribe("tcp://127.0.0.1:5555")
+        let zmq_endpoint = format!(
+            "tcp://{}:{}",
+            context.state.settings.zmq.host, context.state.settings.zmq.port
+        );
+        let zmq = async_zmq::subscribe(&zmq_endpoint)
             .context(error::ZMQSocketError {
-                details: String::from("Could not subscribe on tcp://127.0.0.1:5555"),
+                details: format!("Could not subscribe on zmq endpoint {}", &zmq_endpoint),
             })?
             .connect()
             .context(error::ZMQError {
@@ -84,9 +81,9 @@ impl Subscription {
                 details: format!("Could not subscribe to '{}' topic", "state"),
             })?;
 
-        info!(context.logger, "Subscribed to ZMQ Publications");
+        info!(context.state.logger, "Subscribed to ZMQ Publications");
 
-        let logger = context.logger.clone();
+        let logger = context.state.logger.clone();
         let stream = zmq.map(move |msg| {
             let msg = msg.context(error::ZMQRecvError {
                 details: String::from("ZMQ Reception Error"),
@@ -132,9 +129,11 @@ impl Subscription {
             // info!(logger, "Received status {}", status);
 
             // The msg we have left should be a serialized version of the status.
-            if let Err(err) = serde_json::from_str::<State>(status).context(error::SerdeJSONError {
-                details: String::from("Could not deserialize state"),
-            }) {
+            if let Err(err) =
+                serde_json::from_str::<fsm::State>(status).context(error::SerdeJSONError {
+                    details: String::from("Could not deserialize state"),
+                })
+            {
                 info!(logger, "Deserialize error: {}", err);
             }
 

@@ -57,9 +57,9 @@ impl From<Vec<Index>> for MultIndexesResponseBody {
 /// Retrieve all indexes
 pub async fn list_indexes(context: &Context) -> Result<MultIndexesResponseBody, error::Error> {
     async move {
-        let state = &context.pool;
+        let pool = &context.state.pool;
 
-        let mut tx = state
+        let mut tx = pool
             .conn()
             .and_then(Connection::begin)
             .await
@@ -82,13 +82,12 @@ pub async fn list_indexes(context: &Context) -> Result<MultIndexesResponseBody, 
 
         Ok(MultIndexesResponseBody::from(indexes))
     }
-        .await
+    .await
 }
 
 /// Create a new index
 pub async fn create_index(
     index_request: IndexRequestBody,
-    es: String,
     context: &Context,
 ) -> Result<IndexResponseBody, error::Error> {
     async move {
@@ -99,44 +98,44 @@ pub async fn create_index(
         } = index_request;
 
         info!(
-            context.logger,
+            context.state.logger,
             "Creating Index {} {} {}", index_type, data_source, region
         );
 
         let index = create_db(&context, &index_type, &data_source, &region).await?;
         let id = index.index_id;
 
-        // Now construct and initialize the Finite State Machine (FSM)
-        // state is the name of the topic we're asking the publisher to broadcast message,
-        // 5555 is the port
         let fsm = fsm::FSM::new(
             id,
             index_type,
             data_source,
             region,
-            es,
+            &context.state.settings,
             String::from("state"),
-            5555,
         )?;
 
         // Listen to FSM for updates
         let ct2 = context.clone();
         tokio::spawn(update_notifications(ct2, id));
-        info!(context.logger, "Listening to state changes");
+        info!(context.state.logger, "Listening to state changes");
 
         tokio::spawn(fsm::exec(fsm));
-        info!(context.logger, "Running FSM");
+        info!(context.state.logger, "Running FSM");
 
         Ok(IndexResponseBody::from(IndexResponseBody { index }))
     }
-        .await
+    .await
 }
 
 async fn update_notifications(context: Context, index_id: EntityId) -> Result<(), error::Error> {
     // Ready a subscription connection to receive notifications from the FSM
-    let mut zmq = async_zmq::subscribe("tcp://127.0.0.1:5555")
+    let zmq_endpoint = format!(
+        "tcp://{}:{}",
+        context.state.settings.zmq.host, context.state.settings.zmq.port
+    );
+    let mut zmq = async_zmq::subscribe(&zmq_endpoint)
         .context(error::ZMQSocketError {
-            details: String::from("Could not subscribe on tcp://127.0.0.1:5555"),
+            details: format!("Could not subscribe to zmq endpoint at {}", &zmq_endpoint),
         })?
         .connect()
         .context(error::ZMQError {
@@ -148,9 +147,9 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
             details: format!("Could not subscribe to '{}' topic", "state"),
         })?;
 
-    info!(context.logger, "Subscribed to ZMQ Publications");
+    info!(context.state.logger, "Subscribed to ZMQ Publications");
 
-    let logger = context.logger.clone();
+    let logger = context.state.logger.clone();
     // and listen for notifications
     while let Some(msg) = zmq.next().await {
         // Received message is a type of Result<MessageBuf>
@@ -199,9 +198,9 @@ async fn update_db(
     msg: &str,
 ) -> Result<Index, error::Error> {
     // We now have a valid status, so we proceed with updating the database.
-    let state = &context.pool;
+    let pool = &context.state.pool;
 
-    let mut tx = state
+    let mut tx = pool
         .conn()
         .and_then(Connection::begin)
         .await
@@ -229,8 +228,8 @@ async fn create_db(
     data_source: &str,
     region: &str,
 ) -> Result<Index, error::Error> {
-    let state = &context.pool;
-    let mut tx = state
+    let pool = &context.state.pool;
+    let mut tx = pool
         .conn()
         .and_then(Connection::begin)
         .await

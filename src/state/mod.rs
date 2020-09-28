@@ -9,6 +9,7 @@ use sqlx::sqlite::SqlitePool;
 pub struct State {
     pub pool: SqlitePool,
     pub logger: Logger,
+    pub settings: Settings,
 }
 
 impl State {
@@ -38,6 +39,10 @@ impl State {
             o!("host" => String::from(&settings.service.host), "port" => settings.service.port, "database" => String::from(&settings.database.url)),
         );
 
-        Ok(Self { pool, logger })
+        Ok(Self {
+            pool,
+            logger,
+            settings: settings.clone(),
+        })
     }
 }

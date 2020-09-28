@@ -18,7 +18,7 @@ pub async fn test<'a>(matches: &ArgMatches<'a>, logger: Logger) -> Result<(), er
         info!(logger, "Launching testing service");
         let handle = tokio::runtime::Handle::current();
         thread::spawn(move || {
-            handle.spawn(async {
+            handle.spawn(async move {
                 let decorator = slog_term::TermDecorator::new().build();
                 let drain = slog_term::FullFormat::new(decorator).build().fuse();
                 let drain = slog_async::Async::new(drain).build().fuse();
@@ -26,7 +26,7 @@ pub async fn test<'a>(matches: &ArgMatches<'a>, logger: Logger) -> Result<(), er
                 let state = State::new(&settings, &logger)
                     .await
                     .expect("state creation");
-                let _ = run_server(settings, state).await;
+                run_server(settings, state).await
             });
         });
         //th.join().expect("Waiting for test execution");

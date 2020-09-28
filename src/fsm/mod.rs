@@ -13,6 +13,7 @@ mod ntfs;
 mod osm;
 
 use crate::error;
+use crate::settings::Settings;
 
 // From https://gist.github.com/anonymous/ee3e4df093c136ced7b394dc7ffb78e1
 
@@ -96,11 +97,10 @@ impl FSM {
         index_type: S,
         data_source: S,
         region: S,
-        es: String,
-        topic: String,
-        port: u32,
+        settings: &Settings,
+        topic: S,
     ) -> Result<Self, error::Error> {
-        let zmq_endpoint = format!("tcp://127.0.0.1:{}", port);
+        let zmq_endpoint = format!("tcp://{}:{}", settings.zmq.host, settings.zmq.port);
         let zmq = async_zmq::publish(&zmq_endpoint)
             .context(error::ZMQSocketError {
                 details: format!("Could not publish on endpoint '{}'", zmq_endpoint),
@@ -109,21 +109,28 @@ impl FSM {
             .context(error::ZMQError {
                 details: String::from("Could not bind socket for publication"),
             })?;
-        let es = Url::parse(&es).context(error::URLError {
-            details: format!("Could not parse Elasticsearch URL '{}'", es),
+        let elasticsearch_endpoint = format!(
+            "http://{}:{}",
+            settings.elasticsearch.host, settings.elasticsearch.port
+        );
+        let elasticsearch_url = Url::parse(&elasticsearch_endpoint).context(error::URLError {
+            details: format!(
+                "Could not parse elasticsearch URL '{}'",
+                &elasticsearch_endpoint
+            ),
         })?;
         Ok(FSM {
             id: index_id,
             state: State::NotAvailable,
-            working_dir: PathBuf::from("./work"),
-            mimirs_dir: PathBuf::from("."),
-            cosmogony_dir: PathBuf::from("."),
+            working_dir: PathBuf::from(&settings.work.working_dir),
+            mimirs_dir: PathBuf::from(&settings.work.mimirsbrunn_dir),
+            cosmogony_dir: PathBuf::from(&settings.work.cosmogony_dir),
             events: VecDeque::new(),
-            es,
+            es: elasticsearch_url,
             index_type: index_type.into(),
             data_source: data_source.into(),
             region: region.into(),
-            topic,
+            topic: topic.into(),
             publish: zmq,
         })
     }

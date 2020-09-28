@@ -18,16 +18,14 @@ use ctl2mimir::state::State;
 pub async fn run<'a>(matches: &ArgMatches<'a>, logger: Logger) -> Result<(), error::Error> {
     let settings = Settings::new(matches)?;
     let state = State::new(&settings, &logger).await?;
-    run_server(settings, state).await
+    run_server(state).await
 }
 
-pub async fn run_server(settings: Settings, state: State) -> Result<(), error::Error> {
+pub async fn run_server(state: State) -> Result<(), error::Error> {
     // We keep a copy of the logger before the context takes ownership of it.
-    let logger1 = state.logger.clone();
-    let pool1 = state.pool.clone();
+    let state1 = state.clone();
     let qm_state1 = warp::any().map(move || gql::Context {
-        pool: pool1.clone(),
-        logger: logger1.clone(),
+        state: state1.clone(),
     });
 
     let qm_schema = gql::schema();
@@ -40,11 +38,9 @@ pub async fn run_server(settings: Settings, state: State) -> Result<(), error::E
 
     let root_node = Arc::new(gql::schema());
 
-    let logger2 = state.logger.clone();
-    let pool2 = state.pool.clone();
+    let state2 = state.clone();
     let qm_state2 = warp::any().map(move || gql::Context {
-        pool: pool2.clone(),
-        logger: logger2.clone(),
+        state: state2.clone(),
     });
 
     let notifications = warp::path("subscriptions")
@@ -74,8 +70,8 @@ pub async fn run_server(settings: Settings, state: State) -> Result<(), error::E
 
     let routes = playground.or(graphql).or(notifications).or(dir).or(index);
 
-    let host = settings.service.host;
-    let port = settings.service.port;
+    let host = state.settings.service.host;
+    let port = state.settings.service.port;
     let addr = (host.as_str(), port);
     let addr = addr
         .to_socket_addrs()
