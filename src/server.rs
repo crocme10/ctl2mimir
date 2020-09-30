@@ -48,14 +48,16 @@ pub async fn run_server(state: State) -> Result<(), error::Error> {
         .and(qm_state2.clone())
         .map(move |ws: warp::ws::Ws, qm_state| {
             let root_node = root_node.clone();
-            ws.on_upgrade(move |websocket| async move {
-                serve_graphql_ws(websocket, root_node, ConnectionConfig::new(qm_state))
-                    .map(|r| {
-                        if let Err(e) = r {
-                            println!("Websocket err: {}", e);
-                        }
-                    })
-                    .await
+            ws.on_upgrade(move |websocket| {
+                async move {
+                    serve_graphql_ws(websocket, root_node, ConnectionConfig::new(qm_state))
+                        .map(|r| {
+                            if let Err(e) = r {
+                                println!("Websocket err: {}", e);
+                            }
+                        })
+                        .await
+                }
             })
         })
         .map(|reply| warp::reply::with_header(reply, "Sec-Websocket-Protocol", "graphql-ws"));
@@ -64,11 +66,20 @@ pub async fn run_server(state: State) -> Result<(), error::Error> {
         .and(warp::path("playground"))
         .and(playground_filter("/graphql", Some("/subscriptions")));
 
-    let index = warp::fs::file("dist/index.html");
+    let cors = warp::cors()
+        .allow_any_origin()
+        .allow_methods(vec!["GET", "POST"])
+        .allow_headers(vec!["content-type", "authorization"])
+        .allow_any_origin()
+        .build();
 
-    let dir = warp::fs::dir("dist");
+    let log = warp::log("foo");
 
-    let routes = playground.or(graphql).or(notifications).or(dir).or(index);
+    let routes = playground
+        .or(graphql)
+        .or(notifications)
+        .with(cors)
+        .with(log);
 
     let host = state.settings.service.host;
     let port = state.settings.service.port;
