@@ -18,7 +18,9 @@ use crate::settings::Settings;
 
 // From https://gist.github.com/anonymous/ee3e4df093c136ced7b394dc7ffb78e1
 
+/// Using internally tagged so it's more ... across types.
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "type")]
 pub enum State {
     NotAvailable,
     DownloadingInProgress {
@@ -488,7 +490,10 @@ pub async fn exec(mut fsm: FSM) -> Result<(), error::Error> {
         let msg = vec![&i, &j, &k]; // topic, index id, status
         let msg: Vec<Message> = msg.into_iter().map(Message::from).collect();
         let res: MultipartIter<_, _> = msg.into();
-        info!(&fsm.logger, "publishing {}: {}", j, k);
+        info!(
+            &fsm.logger,
+            "FSM publishing new state {} for index {}", k, j
+        );
         fsm.publish.send(res).await.unwrap();
         if let State::Failure(string) = &fsm.state {
             println!("{}", string);

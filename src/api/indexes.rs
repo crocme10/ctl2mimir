@@ -134,7 +134,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
         "tcp://{}:{}",
         context.state.settings.zmq.host, context.state.settings.zmq.port
     );
-    let zmq_topic = "state";
+    let zmq_topic = &context.state.settings.zmq.topic;
     let mut zmq = async_zmq::subscribe(&zmq_endpoint)
         .context(error::ZMQSocketError {
             details: format!("Could not subscribe to zmq endpoint at {}", &zmq_endpoint),
@@ -144,7 +144,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
             details: String::from("Could not connect subscribe"),
         })?;
 
-    zmq.set_subscribe("state")
+    zmq.set_subscribe(&zmq_topic)
         .context(error::ZMQSubscribeError {
             details: format!("Could not subscribe to '{}' topic", &zmq_topic),
         })?;
@@ -176,7 +176,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
                 details: String::from("Status Message is not valid UTF8"),
             })?;
 
-        debug!(logger, "API Received {}", msg);
+        info!(logger, "API Received {}", msg);
         // The msg we have left should be a serialized version of the status.
         let status = serde_json::from_str(msg).context(error::SerdeJSONError {
             details: String::from("Could not deserialize state"),

@@ -10,6 +10,7 @@ use super::error;
 pub struct Zmq {
     pub host: String,
     pub port: u16,
+    pub topic: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]

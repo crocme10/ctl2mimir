@@ -67,7 +67,7 @@ impl Subscription {
             "tcp://{}:{}",
             context.state.settings.zmq.host, context.state.settings.zmq.port
         );
-        let zmq_topic = "state";
+        let zmq_topic = &context.state.settings.zmq.topic;
         let zmq = async_zmq::subscribe(&zmq_endpoint)
             .context(error::ZMQSocketError {
                 details: format!("Could not subscribe on zmq endpoint {}", &zmq_endpoint),
@@ -77,14 +77,16 @@ impl Subscription {
                 details: String::from("Could not connect subscribe"),
             })?;
 
-        zmq.set_subscribe("state")
+        zmq.set_subscribe(&zmq_topic)
             .context(error::ZMQSubscribeError {
                 details: format!("Could not subscribe to '{}' topic", &zmq_topic),
             })?;
 
         info!(
             context.state.logger,
-            "Subscribed to ZMQ Publications on endpoint {} / topic {}", &zmq_endpoint, &zmq_topic
+            "Graphql Subscription connected to ZMQ publications on endpoint {} / topic {}",
+            &zmq_endpoint,
+            &zmq_topic
         );
 
         let logger = context.state.logger.clone();
@@ -130,7 +132,7 @@ impl Subscription {
                     details: String::from("Status Message is not valid UTF8"),
                 })?;
 
-            // info!(logger, "Received status {}", status);
+            info!(logger, "GraphQL received status update {}", status);
 
             // The msg we have left should be a serialized version of the status.
             if let Err(err) =
@@ -141,13 +143,14 @@ impl Subscription {
                 info!(logger, "Deserialize error: {}", err);
             }
 
-            // info!(logger, "Deserialized status {:?}", status);
+            let status = String::from(status);
+            info!(logger, "string: {}", status);
 
             let resp = indexes::IndexStatusUpdateBody {
                 id,
                 status: String::from(status),
             };
-            debug!(logger, "GraphQL Notification: {:?}", resp);
+            info!(logger, "GraphQL Notification: {:?}", resp);
             Ok(resp)
         });
 
