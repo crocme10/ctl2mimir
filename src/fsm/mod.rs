@@ -1,5 +1,6 @@
 use async_zmq::{Message, MultipartIter, SinkExt};
 use serde::{Deserialize, Serialize};
+use slog::{info, o, Logger};
 use snafu::ResultExt;
 use std::collections::VecDeque;
 use std::path::PathBuf;
@@ -89,6 +90,7 @@ pub struct FSM {
     region: String,          // The region we need to index
     topic: String,           // The topic we need to broadcast.
     publish: async_zmq::publish::Publish<std::vec::IntoIter<Message>, Message>,
+    logger: Logger,
 }
 
 impl FSM {
@@ -99,6 +101,7 @@ impl FSM {
         region: S,
         settings: &Settings,
         topic: S,
+        logger: Logger,
     ) -> Result<Self, error::Error> {
         let zmq_endpoint = format!("tcp://{}:{}", settings.zmq.host, settings.zmq.port);
         let zmq = async_zmq::publish(&zmq_endpoint)
@@ -122,6 +125,7 @@ impl FSM {
                 &elasticsearch_endpoint
             ),
         })?;
+        let fsm_logger = logger.new(o!("zmq" => zmq_endpoint));
         Ok(FSM {
             id: index_id,
             state: State::NotAvailable,
@@ -135,6 +139,7 @@ impl FSM {
             region: region.into(),
             topic: topic.into(),
             publish: zmq,
+            logger: fsm_logger,
         })
     }
     async fn next(&mut self, event: Event) {
@@ -483,7 +488,7 @@ pub async fn exec(mut fsm: FSM) -> Result<(), error::Error> {
         let msg = vec![&i, &j, &k]; // topic, index id, status
         let msg: Vec<Message> = msg.into_iter().map(Message::from).collect();
         let res: MultipartIter<_, _> = msg.into();
-        println!("Publishing {}: {}", j, k);
+        info!(&fsm.logger, "publishing {}: {}", j, k);
         fsm.publish.send(res).await.unwrap();
         if let State::Failure(string) = &fsm.state {
             println!("{}", string);

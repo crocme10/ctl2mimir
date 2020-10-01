@@ -67,6 +67,7 @@ impl Subscription {
             "tcp://{}:{}",
             context.state.settings.zmq.host, context.state.settings.zmq.port
         );
+        let zmq_topic = "state";
         let zmq = async_zmq::subscribe(&zmq_endpoint)
             .context(error::ZMQSocketError {
                 details: format!("Could not subscribe on zmq endpoint {}", &zmq_endpoint),
@@ -78,10 +79,13 @@ impl Subscription {
 
         zmq.set_subscribe("state")
             .context(error::ZMQSubscribeError {
-                details: format!("Could not subscribe to '{}' topic", "state"),
+                details: format!("Could not subscribe to '{}' topic", &zmq_topic),
             })?;
 
-        info!(context.state.logger, "Subscribed to ZMQ Publications");
+        info!(
+            context.state.logger,
+            "Subscribed to ZMQ Publications on endpoint {} / topic {}", &zmq_endpoint, &zmq_topic
+        );
 
         let logger = context.state.logger.clone();
         let stream = zmq.map(move |msg| {

@@ -112,6 +112,7 @@ pub async fn create_index(
             region,
             &context.state.settings,
             String::from("state"),
+            context.state.logger.clone(),
         )?;
 
         // Listen to FSM for updates
@@ -133,6 +134,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
         "tcp://{}:{}",
         context.state.settings.zmq.host, context.state.settings.zmq.port
     );
+    let zmq_topic = "state";
     let mut zmq = async_zmq::subscribe(&zmq_endpoint)
         .context(error::ZMQSocketError {
             details: format!("Could not subscribe to zmq endpoint at {}", &zmq_endpoint),
@@ -144,10 +146,13 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
 
     zmq.set_subscribe("state")
         .context(error::ZMQSubscribeError {
-            details: format!("Could not subscribe to '{}' topic", "state"),
+            details: format!("Could not subscribe to '{}' topic", &zmq_topic),
         })?;
 
-    info!(context.state.logger, "Subscribed to ZMQ Publications");
+    info!(
+        context.state.logger,
+        "Subscribed to ZMQ Publications on endpoint {} / topic {}", &zmq_endpoint, &zmq_topic
+    );
 
     let logger = context.state.logger.clone();
     // and listen for notifications
