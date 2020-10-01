@@ -5,6 +5,9 @@ use serde::Serialize;
 use crate::db::model::*;
 
 /// An index
+// The status is a string, but it should be a state (as in FSM::State).
+// But for this to work, I'd have to implement GraphQLEnum for FSM::State,
+// and the enum would have to be anonymous.
 #[derive(Debug, Serialize, GraphQLObject)]
 #[serde(rename_all = "camelCase")]
 pub(in crate::api) struct Index {

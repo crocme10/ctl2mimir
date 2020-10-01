@@ -18,7 +18,11 @@ use crate::settings::Settings;
 
 // From https://gist.github.com/anonymous/ee3e4df093c136ced7b394dc7ffb78e1
 
-/// Using internally tagged so it's more ... across types.
+// Using internally tagged so it's more even across types.
+// What i mean by this is, with externally tagged enums, you end up with strings for some variants,
+// and objects for other (those that have data associated). For interally tagged, they are all
+// objects, with a type attribute equal to the name of the variants. This makes it easy for eg the
+// client to extract just the name of the variant (to display the status).
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "type")]
 pub enum State {
