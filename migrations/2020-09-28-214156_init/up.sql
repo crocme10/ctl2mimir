@@ -3,7 +3,7 @@ create table if not exists indexes (
   index_type text not null,
   data_source text not null,
   region text not null,
-  status text default 'not_available',
+  status text default '{"type": "NotAvailable"}',
   created_at integer not null default (strftime('%s', 'now')),
   updated_at integer not null default (strftime('%s', 'now'))
 );

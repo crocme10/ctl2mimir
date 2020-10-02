@@ -2,7 +2,7 @@ use async_zmq::StreamExt;
 use futures::TryFutureExt;
 use juniper::{GraphQLInputObject, GraphQLObject};
 use serde::{Deserialize, Serialize};
-use slog::{debug, info};
+use slog::info;
 use snafu::ResultExt;
 use sqlx::Connection;
 use std::convert::TryFrom;

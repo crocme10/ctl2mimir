@@ -7,4 +7,6 @@ while ! nc -z elasticsearch 9200; do
 done
 
 echo "Elasticsearch started"
+movine init
+./service init
 ./service run

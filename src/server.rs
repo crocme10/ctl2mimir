@@ -2,7 +2,7 @@ use clap::ArgMatches;
 use futures::FutureExt;
 use juniper_graphql_ws::ConnectionConfig;
 use juniper_warp::{playground_filter, subscriptions::serve_graphql_ws};
-use slog::{error, info, Logger};
+use slog::{info, Logger};
 use snafu::ResultExt;
 //use sqlx::sqlite::SqlitePool;
 use std::net::ToSocketAddrs;

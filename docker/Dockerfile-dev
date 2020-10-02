@@ -35,7 +35,6 @@ RUN groupadd $APP_USER \
 
 ENV SQLITE_FILE=${SQLITE_FILE}
 RUN cargo install movine
-RUN movine init
 
 COPY --from=builder /ctl2mimir/target/release/service ${APP}/service
 COPY --from=builder /ctl2mimir/config ${APP}/config
@@ -43,9 +42,7 @@ COPY --from=builder /ctl2mimir/migrations ${APP}/migrations
 COPY --from=builder /ctl2mimir/${SQLITE_FILE} ${APP}/${SQLITE_FILE}
 COPY --from=builder /ctl2mimir/docker/entrypoint.sh ${APP}/entrypoint.sh
 
-RUN mkdir ${APP}/work
 RUN chown -R $APP_USER:$APP_USER ${APP}
-
 
 USER $APP_USER
 WORKDIR ${APP}

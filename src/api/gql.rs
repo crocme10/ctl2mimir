@@ -1,6 +1,6 @@
 use futures::Stream;
 use juniper::{FieldError, FieldResult, IntoFieldError, RootNode};
-use slog::{debug, info};
+use slog::info;
 use snafu::ResultExt;
 use std::pin::Pin;
 
