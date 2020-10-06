@@ -1,6 +1,6 @@
 [package]
 name = "ctl2mimir"
-version = "0.1.0"
+version = "0.4.0"
 authors = ["crocme10 <matt@area403.org>"]
 edition = "2018"
 
