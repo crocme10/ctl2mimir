@@ -3,9 +3,8 @@ use slog::{o, warn, Drain};
 
 mod init;
 mod server;
-// mod test;
 
-use ctl2mimir::error;
+use mimir_ingest::error;
 
 #[tokio::main]
 async fn main() -> Result<(), error::Error> {
@@ -17,6 +16,20 @@ async fn main() -> Result<(), error::Error> {
                 .about("Publish users service")
                 .version("0.1")
                 .author("Matthieu Paindavoine <matt@area403.org>")
+                .arg(
+                    Arg::with_name("config")
+                        .value_name("DIRECTORY")
+                        .short("c")
+                        .long("config")
+                        .help("Config directory"),
+                )
+                .arg(
+                    Arg::with_name("settings")
+                        .value_name("NAME")
+                        .short("s")
+                        .long("settings")
+                        .help("Settings used"),
+                )
                 .arg(
                     Arg::with_name("address")
                         .value_name("HOST")
@@ -36,13 +49,41 @@ async fn main() -> Result<(), error::Error> {
             SubCommand::with_name("init")
                 .about("Initialize Database")
                 .version("0.1")
-                .author("Matthieu Paindavoine <matt@area403.org>"),
+                .author("Matthieu Paindavoine <matt@area403.org>")
+                .arg(
+                    Arg::with_name("config")
+                        .value_name("DIRECTORY")
+                        .short("c")
+                        .long("config")
+                        .help("Config directory"),
+                )
+                .arg(
+                    Arg::with_name("settings")
+                        .value_name("NAME")
+                        .short("s")
+                        .long("settings")
+                        .help("Settings used"),
+                ),
         )
         .subcommand(
             SubCommand::with_name("test")
                 .about("Test Something")
                 .version("0.1")
-                .author("Matthieu Paindavoine <matt@area403.org>"),
+                .author("Matthieu Paindavoine <matt@area403.org>")
+                .arg(
+                    Arg::with_name("config")
+                        .value_name("DIRECTORY")
+                        .short("c")
+                        .long("config")
+                        .help("Config directory"),
+                )
+                .arg(
+                    Arg::with_name("settings")
+                        .value_name("NAME")
+                        .short("s")
+                        .long("settings")
+                        .help("Settings used"),
+                ),
         )
         .get_matches();
 

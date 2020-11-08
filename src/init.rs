@@ -3,9 +3,9 @@ use slog::{info, Logger};
 use snafu::ResultExt;
 use std::fs;
 
-use ctl2mimir::db;
-use ctl2mimir::error;
-use ctl2mimir::settings::Settings;
+use mimir_ingest::db;
+use mimir_ingest::error;
+use mimir_ingest::settings::Settings;
 
 #[allow(clippy::needless_lifetimes)]
 pub async fn init<'a>(matches: &ArgMatches<'a>, logger: Logger) -> Result<(), error::Error> {

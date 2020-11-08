@@ -14,9 +14,9 @@ host = "elasticsearch"
 port = "9200"
 
 [work]
-working_dir = "/usr/src/app/work"
-mimirsbrunn_dir = "/srv/mimir"
-cosmogony_dir = "/srv/cosmogony"
+working_dir = "/var/opt/mimir_ingest/work"
+mimirsbrunn_dir = "/opt/mimirsbrunn"
+cosmogony_dir = "/opt/cosmogony"
 
 [service]
 host = "0.0.0.0"

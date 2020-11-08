@@ -4,9 +4,9 @@ use slog::{o, Drain};
 use std::thread;
 
 use super::server::run_server;
-use ctl2mimir::error;
-use ctl2mimir::settings::Settings;
-use ctl2mimir::state::State;
+use mimir_ingest::error;
+use mimir_ingest::settings::Settings;
+use mimir_ingest::state::State;
 
 #[allow(clippy::needless_lifetimes)]
 pub async fn test<'a>(matches: &ArgMatches<'a>, logger: Logger) -> Result<(), error::Error> {

@@ -9,10 +9,10 @@ use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use warp::{self, Filter};
 
-use ctl2mimir::api::gql;
-use ctl2mimir::error;
-use ctl2mimir::settings::Settings;
-use ctl2mimir::state::State;
+use mimir_ingest::api::gql;
+use mimir_ingest::error;
+use mimir_ingest::settings::Settings;
+use mimir_ingest::state::State;
 
 #[allow(clippy::needless_lifetimes)]
 pub async fn run<'a>(matches: &ArgMatches<'a>, logger: Logger) -> Result<(), error::Error> {
@@ -48,15 +48,17 @@ pub async fn run_server(state: State) -> Result<(), error::Error> {
         .and(qm_state2.clone())
         .map(move |ws: warp::ws::Ws, context: gql::Context| {
             let root_node = root_node.clone();
-            ws.on_upgrade(move |websocket| async move {
-                info!(context.state.logger, "Server received subscription request");
-                serve_graphql_ws(websocket, root_node, ConnectionConfig::new(context))
-                    .map(|r| {
-                        if let Err(e) = r {
-                            println!("Websocket err: {}", e);
-                        }
-                    })
-                    .await
+            ws.on_upgrade(move |websocket| {
+                async move {
+                    info!(context.state.logger, "Server received subscription request");
+                    serve_graphql_ws(websocket, root_node, ConnectionConfig::new(context))
+                        .map(|r| {
+                            if let Err(e) = r {
+                                println!("Websocket err: {}", e);
+                            }
+                        })
+                        .await
+                }
             })
         })
         .map(|reply| warp::reply::with_header(reply, "Sec-Websocket-Protocol", "graphql-ws"));
@@ -93,7 +95,7 @@ pub async fn run_server(state: State) -> Result<(), error::Error> {
             details: String::from("Cannot resolve addr"),
         })?;
 
-    info!(state.logger, "Serving ctl2mimir");
+    info!(state.logger, "Serving Mimir Ingest");
     warp::serve(routes).run(addr).await;
 
     Ok(())

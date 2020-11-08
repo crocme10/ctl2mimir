@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
-use slog::{debug, info, o, Logger};
+use slog::{debug, o, Logger};
 use snafu::ResultExt;
 use sqlx::error::DatabaseError;
 use sqlx::pool::PoolConnection;
@@ -8,6 +8,7 @@ use sqlx::sqlite::{SqliteError, SqliteQueryAs};
 use sqlx::{Cursor, Executor, FromRow, SqliteConnection, SqlitePool};
 use std::convert::TryFrom;
 use std::process::Stdio;
+use tokio::io::AsyncWriteExt;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
@@ -172,23 +173,34 @@ SELECT * FROM indexes WHERE index_id = $1
 }
 
 pub async fn init_db(conn_str: &str, logger: Logger) -> Result<(), error::Error> {
-    info!(logger, "Initializing  DB @ {}", conn_str);
-    migration_down(conn_str, &logger).await?;
-    migration_up(conn_str, &logger).await?;
-    Ok(())
-}
-
-pub async fn migration_up(conn_str: &str, logger: &Logger) -> Result<(), error::Error> {
     let clogger = logger.new(o!("database" => String::from(conn_str)));
-    debug!(clogger, "Movine Up");
-    let mut cmd = Command::new("movine");
-    cmd.env("SQLITE_FILE", conn_str);
-    cmd.arg("up");
-    cmd.stdout(Stdio::piped());
+    debug!(clogger, "Setting up the database");
 
+    // We're essentially trying to run cat migrations/up.sql | sqlite3 [file.db]
+    let migration = tokio::fs::read_to_string("migrations/up.sql")
+        .await
+        .context(error::TokioIOError {
+            details: format!("Could not open {}", "migrations/up.sql"),
+        })?;
+    let mut cmd = Command::new("sqlite3");
+    // FIXME The following assumes the connection string is sqlite://
+    // Need to test that
+    cmd.arg(conn_str.trim_start_matches("sqlite://"));
+    cmd.stdin(Stdio::piped());
+    cmd.stdout(Stdio::piped());
     let mut child = cmd.spawn().context(error::TokioIOError {
-        details: String::from("Failed to execute movine"),
+        details: String::from("Failed to execute sqlite3"),
     })?;
+
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(migration.as_bytes())
+        .await
+        .context(error::TokioIOError {
+            details: String::from("Could not write to sqlite3 stdin"),
+        })?;
 
     let stdout = child.stdout.take().ok_or(error::Error::MiscError {
         details: String::from("child did not have a handle to stdout"),
@@ -204,42 +216,6 @@ pub async fn migration_up(conn_str: &str, logger: &Logger) -> Result<(), error::
         // println!("child status was: {}", status);
     });
     debug!(clogger, "Spawned migration up");
-
-    while let Some(line) = reader.next_line().await.context(error::TokioIOError {
-        details: String::from("Could not read from piped output"),
-    })? {
-        debug!(clogger, "movine: {}", line);
-    }
-
-    Ok(())
-}
-
-pub async fn migration_down(conn_str: &str, logger: &Logger) -> Result<(), error::Error> {
-    let clogger = logger.new(o!("database" => String::from(conn_str)));
-    debug!(clogger, "Movine Down");
-    let mut cmd = Command::new("movine");
-    cmd.env("SQLITE_FILE", conn_str);
-    cmd.arg("down");
-    cmd.stdout(Stdio::piped());
-
-    let mut child = cmd.spawn().context(error::TokioIOError {
-        details: String::from("Failed to execute movine"),
-    })?;
-
-    let stdout = child.stdout.take().ok_or(error::Error::MiscError {
-        details: String::from("child did not have a handle to stdout"),
-    })?;
-
-    let mut reader = BufReader::new(stdout).lines();
-
-    // Ensure the child process is spawned in the runtime so it can
-    // make progress on its own while we await for any output.
-    tokio::spawn(async {
-        // FIXME Need to do something about logging this and returning an error.
-        let _status = child.await.expect("child process encountered an error");
-        // println!("child status was: {}", status);
-    });
-    debug!(clogger, "Spawned migration down");
 
     while let Some(line) = reader.next_line().await.context(error::TokioIOError {
         details: String::from("Could not read from piped output"),

@@ -1,7 +1,7 @@
-# ctl2mimir
+# mimir_ingest
 
 Declarative interface for driving Elasticsearch index management. It is designed to hide all the
-machinery necessary to create Elasticsearch index. A user would just need to use ctl2mimir for
+machinery necessary to create Elasticsearch index. A user would just need to use mimir_ingest for
 creating indices, and bragi to query them.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -14,7 +14,7 @@ system.
 
 ### Prerequisites
 
-`ctl2mimir` relies on [0MQ](https://zeromq.org) and [SQLite](https://sqlite.org)
+`mimir_ingest` relies on [0MQ](https://zeromq.org) and [SQLite](https://sqlite.org)
 
 For debian environments, you would need to install the following packages:
 
@@ -30,8 +30,8 @@ You can find instructions [here](https://www.rust-lang.org/tools/install).
 This is a straightforward rust project, so a dollop of `cargo` should do the trick:
 
 ```
-git clone https://github.com/riendegris/ctl2mimir
-cd ctl2mimir
+git clone https://github.com/riendegris/mimir_ingest
+cd mimir_ingest
 cargo build --release
 ```
 
@@ -40,9 +40,9 @@ This will create a binary in `target/release/server`
 Alternatively, you can construct a docker container
 
 ```
-git clone https://github.com/riendegris/ctl2mimir
-cd ctl2mimir
-docker build -t ctl2mimir -f ./docker/Dockerfile .
+git clone https://github.com/riendegris/mimir_ingest
+cd mimir_ingest
+docker build -t mimir_ingest -f ./docker/Dockerfile .
 ```
 
 ## Running
@@ -93,7 +93,7 @@ this repository](https://github.com/your/project/tags).
 
 * **Matthieu Paindavoine** - *Initial work* - [riendegris](https://github.com/riendegris)
 
-See also the list of [contributors](https://github.com/riendegris/ctl2mimir/contributors) who
+See also the list of [contributors](https://github.com/riendegris/mimir_ingest/contributors) who
 participated in this project.
 
 ## License
