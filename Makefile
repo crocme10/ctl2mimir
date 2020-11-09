@@ -33,14 +33,17 @@ format: ## Check formatting of the code
 
 clippy: lint ## Check quality of the code (alias for 'lint')
 lint: ## Check quality of the code
-	cargo clippy --workspace --all-features --all-targets -- --warn clippy::cargo --allow clippy::multiple_crate_versions --deny warnings
+	cargo clippy --all-features --all-targets -- --warn clippy::cargo --allow clippy::multiple_crate_versions --deny warnings
 
 test: ## Launch all tests
 	# Run all the tests of `tartare-tools` in the entire repository,
 	cargo test --workspace --all-targets                 # `--all-targets` but no doctests
 	cargo test --workspace --doc                         # doctests only
 
-.PHONY: fmt format clippy lint test
+clean: ## Cleans all targets
+	cargo clean
+
+.PHONY: fmt format clippy lint test clean
 
 # DOCKER TASKS
 # Build the container

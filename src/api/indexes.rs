@@ -71,10 +71,7 @@ pub async fn list_indexes(context: &Context) -> Result<MultIndexesResponseBody, 
             details: "Could not get all them indexes",
         })?;
 
-        let indexes = entities
-            .into_iter()
-            .map(|ent| Index::from(ent))
-            .collect::<Vec<_>>();
+        let indexes = entities.into_iter().map(Index::from).collect::<Vec<_>>();
 
         tx.commit().await.context(error::DBError {
             details: "could not retrieve indexes",
@@ -123,7 +120,7 @@ pub async fn create_index(
         tokio::spawn(fsm::exec(fsm));
         info!(context.state.logger, "Running FSM");
 
-        Ok(IndexResponseBody::from(IndexResponseBody { index }))
+        Ok(IndexResponseBody { index })
     }
     .await
 }
@@ -165,9 +162,7 @@ async fn update_notifications(context: Context, index_id: EntityId) -> Result<()
         // The msg we receive is made of three parts, the topic, the id, and the serialized status.
         // Here, we skip the topic, and extract the second part.
         let msg = msg
-            .iter()
-            .skip(2) // skip the topic and the id // FIXME use the id
-            .next()
+            .get(2) // skip the topic and the id // FIXME use the id
             .ok_or(error::Error::MiscError {
                 details: String::from("Just one item in a multipart message. That is plain wrong!"),
             })?

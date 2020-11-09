@@ -46,7 +46,7 @@ pub fn index_osm_region(
         .arg("--connection-string")
         .arg(es.as_str())
         .arg("--input")
-        .arg(filepath.clone());
+        .arg(filepath);
     if way {
         command.arg("--import-way");
     }

@@ -1,8 +1,13 @@
 [package]
 name = "mimir_ingest"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["crocme10 <matt@area403.org>"]
 edition = "2018"
+description = "GraphQL API for creating Elasticsearch Indexes for Mimirsbrunn"
+license = "AGPLv3"
+repository = "https://github.com/crocme10/ctl2mimir.git"
+keywords = [ "mimirsbrunn", "elasticsearch", "geocoding" ]
+categories = [ "web-programming", "database" ]
 
 [dependencies]
 async-trait = "0.1.36"

@@ -99,9 +99,7 @@ impl Subscription {
             // The msg we receive is made of three parts, the topic, the id, and the serialized status.
             // Here, we skip the topic, and extract the id.
             let id = msg
-                .iter()
-                .skip(1) // skip the topic
-                .next()
+                .get(1) // skip the topic
                 .ok_or(error::Error::MiscError {
                     details: String::from(
                         "Just one item in a multipart message. That is plain wrong!",
@@ -119,9 +117,7 @@ impl Subscription {
             // The msg we receive is made of three parts, the topic, the id, and the serialized status.
             // Here, we skip the topic, and the id, and extract the status.
             let status = msg
-                .iter()
-                .skip(2)
-                .next()
+                .get(2)
                 .ok_or(error::Error::MiscError {
                     details: String::from(
                         "Just one item in a multipart message. That is plain wrong!",
@@ -146,10 +142,7 @@ impl Subscription {
             let status = String::from(status);
             info!(logger, "string: {}", status);
 
-            let resp = indexes::IndexStatusUpdateBody {
-                id,
-                status: String::from(status),
-            };
+            let resp = indexes::IndexStatusUpdateBody { id, status };
             info!(logger, "GraphQL Notification: {:?}", resp);
             Ok(resp)
         });

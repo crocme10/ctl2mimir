@@ -163,7 +163,7 @@ impl FSM {
             (State::DownloadingInProgress { .. }, Event::DownloadingComplete(ref p, ref d)) => {
                 self.state = State::Downloaded {
                     file_path: p.clone(),
-                    duration: d.clone(),
+                    duration: *d,
                 }
             }
             (State::DownloadingError { .. }, Event::Reset) => {
@@ -184,7 +184,7 @@ impl FSM {
             (State::ProcessingInProgress { .. }, Event::ProcessingComplete(ref p, ref d)) => {
                 self.state = State::Processed {
                     file_path: p.clone(),
-                    duration: d.clone(),
+                    duration: *d,
                 };
             }
             (State::Processed { .. }, Event::Index(ref p)) => {
@@ -206,9 +206,7 @@ impl FSM {
                 self.state = State::NotAvailable;
             }
             (State::IndexingInProgress { .. }, Event::IndexingComplete(ref d)) => {
-                self.state = State::Indexed {
-                    duration: d.clone(),
-                };
+                self.state = State::Indexed { duration: *d };
             }
             (State::Indexed { .. }, Event::Validate) => {
                 self.state = State::ValidationInProgress;
@@ -223,9 +221,8 @@ impl FSM {
                 self.state = State::Available;
             }
             (s, e) => {
-                self.state = State::Failure(
-                    format!("Wrong state, event combination: {:#?} {:#?}", s, e).to_string(),
-                )
+                self.state =
+                    State::Failure(format!("Wrong state, event combination: {:#?} {:#?}", s, e))
             }
         }
     }
@@ -507,7 +504,7 @@ pub async fn exec(mut fsm: FSM) -> Result<(), error::Error> {
         }
     }
     fsm.publish.close().await.context(error::ZMQSendError {
-        details: format!("Could not close publishing endpoint"),
+        details: String::from("Could not close publishing endpoint"),
     })
 }
 

@@ -9,7 +9,6 @@ use sqlx::{Cursor, Executor, FromRow, SqliteConnection, SqlitePool};
 use std::convert::TryFrom;
 use std::process::Stdio;
 use tokio::io::AsyncWriteExt;
-use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
 use super::model::*;
@@ -161,12 +160,9 @@ SELECT * FROM indexes WHERE index_id = $1
         )
         .fetch_all(self)
         .await
-        .map_err(|err| ProvideError::from(err))?;
+        .map_err(ProvideError::from)?;
 
-        let entities = recs
-            .into_iter()
-            .map(|rec| IndexEntity::from(rec))
-            .collect::<Vec<_>>();
+        let entities = recs.into_iter().map(IndexEntity::from).collect::<Vec<_>>();
 
         Ok(entities)
     }

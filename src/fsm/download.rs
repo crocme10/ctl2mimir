@@ -16,7 +16,7 @@ pub fn download(link: &str, download_path: PathBuf) -> Result<(PathBuf, usize), 
 
     let file = get_filename_from_url(link)?;
 
-    download_path.push(format!("{}", file));
+    download_path.push(file);
 
     if download_path.exists() {
         return Ok((download_path, 0));
@@ -74,7 +74,7 @@ pub fn get_filename_from_url(link: &str) -> Result<String, error::Error> {
         .ok_or(error::Error::MiscError {
             details: format!("There is such thing as cannot-be-a-base URL... {}", link),
         })?;
-    if last.len() == 0 {
+    if last.is_empty() {
         Ok(String::from("foo"))
     } else {
         Ok(String::from(last))

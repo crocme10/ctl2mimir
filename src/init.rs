@@ -1,5 +1,4 @@
 use clap::ArgMatches;
-use config::Source;
 use slog::{info, Logger};
 use snafu::ResultExt;
 use std::fs;

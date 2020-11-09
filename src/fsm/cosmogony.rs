@@ -18,7 +18,7 @@ pub fn index_cosmogony_region(
         .arg("--connection-string")
         .arg(es.as_str())
         .arg("--input")
-        .arg(filepath.clone());
+        .arg(filepath);
     let output = command.output().context(error::IOError {
         details: format!(
             "Could not create cosmogony2mimir command using {}",
@@ -60,7 +60,7 @@ pub fn generate_cosmogony(
         .arg("--country-code")
         .arg("FR")
         .arg("--input")
-        .arg(inputpath.clone())
+        .arg(inputpath)
         .arg("--output")
         .arg(outputpath.clone());
     let output = command.output().context(error::IOError {
