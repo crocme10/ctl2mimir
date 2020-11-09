@@ -1,44 +1,44 @@
 use clap::ArgMatches;
 use config::{Config, Environment, File};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use snafu::ResultExt;
 use std::env;
 use std::path::PathBuf;
 
 use super::error;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Zmq {
     pub host: String,
     pub port: u16,
     pub topic: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Elasticsearch {
     pub host: String,
     pub port: u16,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Work {
     pub working_dir: String,
     pub mimirsbrunn_dir: String,
     pub cosmogony_dir: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Database {
     pub url: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Service {
     pub host: String,
     pub port: u16,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Settings {
     pub debug: bool,
     pub testing: bool,
@@ -75,7 +75,7 @@ impl Settings {
         // Add in the current environment file
         // Default to 'development' env
         // Note that this file is _optional_
-        let mode = env::var("RUN_MODE").unwrap_or_else(|_| String::from("development"));
+        let mode = env::var("SETTINGS").unwrap_or_else(|_| String::from("development"));
         dir.push(&mode);
         config
             .merge(File::with_name(&dir.to_str().expect("filename")).required(true))

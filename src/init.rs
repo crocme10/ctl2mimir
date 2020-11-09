@@ -1,4 +1,5 @@
 use clap::ArgMatches;
+use config::Source;
 use slog::{info, Logger};
 use snafu::ResultExt;
 use std::fs;
@@ -11,8 +12,6 @@ use mimir_ingest::settings::Settings;
 pub async fn init<'a>(matches: &ArgMatches<'a>, logger: Logger) -> Result<(), error::Error> {
     info!(logger, "Initiazing application");
     let settings = Settings::new(matches)?;
-
-    info!(logger, "Mode: {}", settings.mode);
 
     let _ = match fs::metadata(&settings.work.working_dir) {
         Err(_) => {

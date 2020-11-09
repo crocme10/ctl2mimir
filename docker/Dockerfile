@@ -1,9 +1,4 @@
-ENV RUSTC_VERSION=1.47
-ENV COSMOGONY_VERSION=0.8.1
-ENV MIMIRSBRUNN_VERSION=1.17.0
-ENV SETTINGS=development
-
-FROM rust:$RUSTC_VERSION-buster as builder
+FROM rust:1.47-buster as builder
 
 RUN USER=root cargo new --lib mimir_ingest
 
@@ -23,13 +18,14 @@ RUN rm ./target/release/deps/mimir_ingest*
 
 RUN cargo build --release
 
-FROM osmwithoutborders/cosmogony:release-v$COSMOGONY_VERSION as cosmogony
+FROM osmwithoutborders/cosmogony:release-v0.8.1 as cosmogony
 
-FROM navitia/mimirsbrunn:v$MIMIRSBRUNN_VERSION as mimirsbrunn
+FROM navitia/mimirsbrunn:v1.17.0 as mimirsbrunn
 
 FROM debian:buster-slim
 
 RUN apt-get update \
+    && apt-get install -y sqlite3 \
     && apt-get install -y libzmq5-dev \
     && apt-get install -y libgeos-c1v5 libgeos-dev\
     && apt-get install -y netcat \
@@ -37,8 +33,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ=Etc/UTC \
-    RUN_MODE=development \
-    APP_USER=appuser
+    APP_USER=appuser \
+    SETTINGS=development \
+    DATABASE_NAME=env.db
 
 RUN groupadd $APP_USER \
     && useradd -g $APP_USER $APP_USER \
@@ -63,6 +60,7 @@ COPY --from=mimirsbrunn /usr/bin/openaddresses2mimir /opt/mimirsbrunn/openaddres
 COPY --from=mimirsbrunn /etc/mimirsbrunn/ /etc/opt/mimirsbrunn
 
 RUN chown -R $APP_USER:$APP_USER /opt/mimir_ingest
+RUN chown -R $APP_USER:$APP_USER /var/opt/mimir_ingest
 RUN chown -R $APP_USER:$APP_USER /opt/cosmogony
 RUN chown -R $APP_USER:$APP_USER /opt/mimirsbrunn
 

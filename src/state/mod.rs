@@ -14,11 +14,11 @@ pub struct State {
 
 impl State {
     pub async fn new(settings: &Settings, logger: &Logger) -> Result<Self, error::Error> {
-        // Here i need to do a little pirouette...
-        // movine does not support (yet) DATABASE_URL. So the content of settings.database.url
-        // is actually not a url, but just a filename.
-        // sqlx, on the other hand, takes a database_url.... so that's what i'll build.
-        let database_url = format!("sqlite://{}", &settings.database.url);
+        let database_url = format!(
+            "sqlite:{}",
+            settings.database.url.trim_start_matches("sqlite://")
+        );
+        info!(logger, "Setting up state with db {}", database_url);
         let pool = SqlitePool::builder()
             .max_size(5)
             .build(&database_url)
@@ -26,7 +26,6 @@ impl State {
             .context(error::DBError {
                 details: String::from("foo"),
             })?;
-        // FIXME ping the pool to know quickly if we have a db connection
 
         let row: (String,) = sqlx::query_as("SELECT sqlite_version()")
             .fetch_one(&pool)

@@ -2,7 +2,7 @@ debug = true
 mode = "development"
 
 [database]
-url = "hello.db"
+url = "sqlite://hello.db"
 
 [zmq]
 host = "127.0.0.1"

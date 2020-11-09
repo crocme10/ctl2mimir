@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::{TimeZone, Utc};
-use slog::{debug, o, Logger};
+use slog::{info, o, Logger};
 use snafu::ResultExt;
 use sqlx::error::DatabaseError;
 use sqlx::pool::PoolConnection;
@@ -174,7 +174,7 @@ SELECT * FROM indexes WHERE index_id = $1
 
 pub async fn init_db(conn_str: &str, logger: Logger) -> Result<(), error::Error> {
     let clogger = logger.new(o!("database" => String::from(conn_str)));
-    debug!(clogger, "Setting up the database");
+    info!(clogger, "Setting up the database");
 
     // We're essentially trying to run cat migrations/up.sql | sqlite3 [file.db]
     let migration = tokio::fs::read_to_string("migrations/up.sql")
@@ -202,11 +202,19 @@ pub async fn init_db(conn_str: &str, logger: Logger) -> Result<(), error::Error>
             details: String::from("Could not write to sqlite3 stdin"),
         })?;
 
-    let stdout = child.stdout.take().ok_or(error::Error::MiscError {
-        details: String::from("child did not have a handle to stdout"),
-    })?;
+    // child
+    //     .stdin
+    //     .as_mut()
+    //     .unwrap()
+    //     .shutdown()
+    //     .await
+    //     .context(error::TokioIOError {
+    //         details: String::from("Could not shutdown stdin"),
+    //     })?;
 
-    let mut reader = BufReader::new(stdout).lines();
+    // let stdout = child.stdout.take().ok_or(error::Error::MiscError {
+    //     details: String::from("child did not have a handle to stdout"),
+    // })?;
 
     // Ensure the child process is spawned in the runtime so it can
     // make progress on its own while we await for any output.
@@ -215,13 +223,17 @@ pub async fn init_db(conn_str: &str, logger: Logger) -> Result<(), error::Error>
         let _status = child.await.expect("child process encountered an error");
         // println!("child status was: {}", status);
     });
-    debug!(clogger, "Spawned migration up");
+    info!(clogger, "Initialized database");
 
-    while let Some(line) = reader.next_line().await.context(error::TokioIOError {
-        details: String::from("Could not read from piped output"),
-    })? {
-        debug!(clogger, "movine: {}", line);
-    }
+    // FIXME Maybe this is messed up now that we're piping from stdin...
+    // If I leave the following code, it will hang, waiting for a line that never
+    // comes...
+    // let mut reader = BufReader::new(stdout).lines();
+    // while let Some(line) = reader.next_line().await.context(error::TokioIOError {
+    //     details: String::from("Could not read from piped output"),
+    // })? {
+    //     info!(clogger, "movine: {}", line);
+    // }
 
     Ok(())
 }
